@@ -7,10 +7,17 @@
 
 **SEOS** (Software Engineering Operating System) is an intelligent, unified workspace designed to eliminate disconnected software engineering artifacts. Rather than generating isolated deliverables in separate tools, SEOS maintains a **single source of truth** across all software engineering phases. 
 
-When a user proposes a single app concept (e.g., *"Food Delivery App"* or *"Prediction Market App"*), the **AI Brain** autonomously derives and synchronizes every connected artifact in real time:
+When a user proposes a single app/website concept the **AI Brain** autonomously derives and synchronizes every connected artifact in real time:
 
-$$\text{Product Idea} \longrightarrow \text{Requirements} \longrightarrow \text{User Stories} \longrightarrow \text{UML/ER Modeling} \longrightarrow \text{Architecture} \longrightarrow \text{OpenAPI 3.1} \longrightarrow \text{SRS/SDD/README}$$
-
+```mermaid
+flowchart TD
+    A["Product Idea"] --> B["Requirements"]
+    B --> C["User Stories"]
+    C --> D["UML / ER Modeling"]
+    D --> E["Architecture"]
+    E --> F["OpenAPI 3.1"]
+    F --> G["SRS / SDD / README"]
+```
 ---
 
 ## Core Features & Modules
