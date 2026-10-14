@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+/* ─── Earth palette: weathered stone, clay, moss, ochre ─── */
+:root {
+  /* Light mode — limestone & sandstone */
+  --app-bg: #f3eee4;
+  --app-surface: #fbf8f2;
+  --app-surface-2: #ece5d8;
+  --app-surface-3: #e0d6c4;
+  --app-border: #e2d8c6;
+  --app-border-2: #cfc1a9;
+  --app-accent: #a4502b;        /* terracotta */
+  --app-accent-2: #bd6a40;
+  --app-accent-glow: rgba(164, 80, 43, 0.18);
+  --app-green: #5f7536;         /* moss */
+  --app-green-glow: rgba(95, 117, 54, 0.2);
+  --app-amber: #b07f2a;         /* ochre */
+  --app-red: #9e3b2c;           /* rust */
+  --app-cyan: #47706f;          /* slate-teal */
+  --app-text: #2a231c;
+  --app-text-2: #5b4f43;
+  --app-text-3: #85776a;
+}
+
+.dark {
+  /* Dark mode — basalt & shale */
+  --app-bg: #161310;
+  --app-surface: #1e1a16;
+  --app-surface-2: #29231e;
+  --app-surface-3: #383029;
+  --app-border: #2c2620;
+  --app-border-2: #40372f;
+  --app-accent: #c8714a;
+  --app-accent-2: #dc8c63;
+  --app-accent-glow: rgba(200, 113, 74, 0.25);
+  --app-green: #93a463;
+  --app-green-glow: rgba(147, 164, 99, 0.25);
+  --app-amber: #d3a250;
+  --app-red: #c95c47;
+  --app-cyan: #82aaa6;
+  --app-text: #efe7da;
+  --app-text-2: #c7b9a6;
+  --app-text-3: #978876;
+}
+
+@theme {
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-seos-bg: var(--app-bg);
+  --color-seos-primary: var(--app-accent);
+  --color-seos-surface: var(--app-surface);
+  --color-seos-surface-2: var(--app-surface-2);
+  --color-seos-surface-3: var(--app-surface-3);
+  --color-seos-border: var(--app-border);
+  --color-seos-border-2: var(--app-border-2);
+  --color-seos-accent: var(--app-accent);
+  --color-seos-accent-2: var(--app-accent-2);
+  --color-seos-accent-glow: var(--app-accent-glow);
+  --color-seos-green: var(--app-green);
+  --color-seos-green-glow: var(--app-green-glow);
+  --color-seos-amber: var(--app-amber);
+  --color-seos-red: var(--app-red);
+  --color-seos-cyan: var(--app-cyan);
+  --color-seos-text: var(--app-text);
+  --color-seos-text-2: var(--app-text-2);
+  --color-seos-text-3: var(--app-text-3);
+
+  /* Aliases for token names used across views */
+  --color-seos-background: var(--app-bg);
+  --color-seos-panel: var(--app-surface);
+  --color-seos-surface-1: var(--app-surface);
+  --color-seos-surface-hover: var(--app-surface-2);
+  --color-seos-hover: var(--app-surface-2);
+  --color-seos-accent-hover: var(--app-accent-2);
+  --color-seos-text-primary: var(--app-text);
+  --color-seos-text-secondary: var(--app-text-2);
+  --color-seos-text-muted: var(--app-text-3);
+
+  /* Home page — fixed rock palette (independent of app theme) */
+  --color-rock-basalt: #1b1714;
+  --color-rock-shale: #2a2420;
+  --color-rock-granite: #4a4038;
+  --color-rock-flint: #6f6357;
+  --color-rock-sandstone: #d8c3a0;
+  --color-rock-limestone: #efe7d8;
+  --color-rock-chalk: #f8f3ea;
+  --color-rock-clay: #a4502b;
+  --color-rock-ember: #c8714a;
+  --color-rock-ochre: #c08a35;
+  --color-rock-moss: #5f7536;
+  --color-rock-lichen: #9aa86a;
+  --color-rock-slate: #47706f;
+}
+
+/* Base styles live in the base layer so Tailwind utilities (p-6, mb-8…) can override them.
+   Tailwind's preflight already resets margin/padding/box-sizing. */
+@layer base {
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  background: var(--color-seos-bg);
+  color: var(--color-seos-text);
+}
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-seos-border-2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-seos-text-3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 6px var(--color-seos-accent-glow); }
+  50% { box-shadow: 0 0 14px var(--color-seos-accent-glow); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes node-pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+.animate-slide-left { animation: slideInLeft 0.3s ease-out forwards; }
+.animate-slide-right { animation: slideInRight 0.3s ease-out forwards; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, var(--color-seos-accent-glow) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+.animate-spin-slow { animation: spin-slow 2s linear infinite; }
+.animate-node-pop { animation: node-pop 0.35s ease-out forwards; }
+
+/* Glass effect */
+.glass {
+  background: color-mix(in srgb, var(--app-surface) 75%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-seos-border);
+}
+
+/* Canvas grid pattern */
+.canvas-grid {
+  background-image:
+    radial-gradient(circle, var(--color-seos-border) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ─── Home page textures ─── */
+.rock-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.2 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.rock-grain-dark {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.82 0 0 0 0 0.7 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-rise { animation: rise 0.7s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise, .animate-fade-in { animation: none; }
+}
