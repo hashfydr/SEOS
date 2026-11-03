@@ -1,0 +1,128 @@
+<mxfile host="app.diagrams.net" agent="SEOS Agent">
+  <diagram id="SEOS_Class_Diagram_Fixed" name="Class Diagram (Project Model)">
+    <mxGraphModel dx="1373" dy="831" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cls_user" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=0;spacing=8;" value="User&lt;hr&gt;+ id: UUID&lt;br&gt;+ name: string&lt;br&gt;+ email: string&lt;br&gt;+ password_hash: string&lt;br&gt;+ role: enum&lt;hr&gt;+ register(): User&lt;br&gt;+ login(): JWT" vertex="1">
+          <mxGeometry height="150" width="220" x="60" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_project" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Project [Aggregate Root]&lt;hr&gt;+ id: UUID&lt;br&gt;+ owner_id: UUID&lt;br&gt;+ title: string&lt;br&gt;+ idea: text&lt;br&gt;+ pipeline_stage: enum&lt;br&gt;+ version: int&lt;hr&gt;+ advanceStage(): void&lt;br&gt;+ snapshot(): ProjectModel" vertex="1">
+          <mxGeometry height="160" width="240" x="360" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_req" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Requirement&lt;hr&gt;+ id: UUID&lt;br&gt;+ code: string&lt;br&gt;+ type: enum (FR, NFR)&lt;br&gt;+ priority: enum&lt;br&gt;+ name: string&lt;br&gt;+ text: text&lt;br&gt;+ status: enum&lt;hr&gt;+ approve(): void" vertex="1">
+          <mxGeometry height="170" width="220" x="60" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_actor" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Actor&lt;hr&gt;+ id: UUID&lt;br&gt;+ name: string&lt;br&gt;+ description: text" vertex="1">
+          <mxGeometry height="100" width="180" x="330" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_diagram" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Diagram&lt;hr&gt;+ id: UUID&lt;br&gt;+ type: enum (CLASS, ER, SEQ)&lt;br&gt;+ layout: json&lt;br&gt;+ code: string" vertex="1">
+          <mxGeometry height="120" width="210" x="560" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_arch" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Architecture&lt;hr&gt;+ id: UUID&lt;br&gt;+ style: string&lt;br&gt;+ components: json&lt;br&gt;+ tradeoffs: json&lt;br&gt;+ rationale: text" vertex="1">
+          <mxGeometry height="130" width="200" x="820" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_doc" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Document&lt;hr&gt;+ id: UUID&lt;br&gt;+ kind: enum (SRS, SDD, README)&lt;br&gt;+ content_md: text&lt;br&gt;+ model_version: int&lt;hr&gt;+ regenerate(): void" vertex="1">
+          <mxGeometry height="130" width="230" x="1070" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_story" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="UserStory&lt;hr&gt;+ id: UUID&lt;br&gt;+ role: string&lt;br&gt;+ goal: text&lt;br&gt;+ benefit: text&lt;br&gt;+ acceptance_criteria: json" vertex="1">
+          <mxGeometry height="130" width="220" x="60" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_entity" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Entity&lt;hr&gt;+ id: UUID&lt;br&gt;+ name: string&lt;br&gt;+ fields: json&lt;br&gt;+ methods: json&lt;br&gt;+ pos_x, pos_y: float" vertex="1">
+          <mxGeometry height="130" width="210" x="560" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_api" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="APIEndpoint&lt;hr&gt;+ id: UUID&lt;br&gt;+ method: enum&lt;br&gt;+ path: string&lt;br&gt;+ schema: json&lt;hr&gt;+ toOpenAPI(): dict" vertex="1">
+          <mxGeometry height="130" width="200" x="820" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_tracelink" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#fafafa;strokeColor=#333333;fontStyle=0;spacing=8;" value="TraceLink&lt;hr&gt;+ id: UUID&lt;br&gt;+ from_type, from_id&lt;br&gt;+ to_type, to_id&lt;br&gt;+ stale: bool" vertex="1">
+          <mxGeometry height="110" width="210" x="1070" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="cls_rel" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fontStyle=0;spacing=8;" value="Relationship&lt;hr&gt;+ id: UUID&lt;br&gt;+ source_id: UUID&lt;br&gt;+ target_id: UUID&lt;br&gt;+ cardinality: string&lt;br&gt;+ kind: enum" vertex="1">
+          <mxGeometry height="130" width="210" x="560" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_1" edge="1" parent="1" source="cls_user" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;" target="cls_project" value="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_2" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;" target="cls_req" value="0..*">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="235" />
+              <mxPoint x="170" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn_3" edge="1" parent="1" source="cls_req" style="endArrow=open;html=1;strokeWidth=1.5;endFill=0;" target="cls_story" value="1..*">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_4" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;" target="cls_diagram" value="0..*">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="235" />
+              <mxPoint x="665" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn_5" edge="1" parent="1" source="cls_diagram" style="endArrow=diamondThin;endFill=0;endSize=16;html=1;strokeWidth=1.5;" target="cls_entity" value="0..*">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_6" edge="1" parent="1" source="cls_entity" style="endArrow=open;html=1;strokeWidth=1.5;endFill=0;" target="cls_rel" value="0..*">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn_7" edge="1" parent="1" source="cls_entity" style="endArrow=open;html=1;strokeWidth=1.5;endFill=0;" target="cls_api" value="0..*">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="790" y="565" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wlu-nSmHmYkWNPA1H_B9-2" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cls_actor" value="0..*">
+          <mxGeometry relative="1" x="-0.4713" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="250" />
+            </Array>
+            <mxPoint x="540" y="230" as="sourcePoint" />
+            <mxPoint x="725" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wlu-nSmHmYkWNPA1H_B9-3" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cls_arch" value="0..*">
+          <mxGeometry relative="1" x="-0.5613" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="240" />
+            </Array>
+            <mxPoint x="860" y="190" as="sourcePoint" />
+            <mxPoint x="800" y="260" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wlu-nSmHmYkWNPA1H_B9-4" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cls_doc" value="0..*">
+          <mxGeometry relative="1" x="-0.596" as="geometry">
+            <Array as="points">
+              <mxPoint x="1010" y="230" />
+            </Array>
+            <mxPoint x="990" y="110" as="sourcePoint" />
+            <mxPoint x="1430" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wlu-nSmHmYkWNPA1H_B9-5" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cls_api" value="0..*">
+          <mxGeometry relative="1" x="-0.6839" as="geometry">
+            <Array as="points">
+              <mxPoint x="780" y="260" />
+              <mxPoint x="810" y="410" />
+            </Array>
+            <mxPoint x="850" y="480" as="sourcePoint" />
+            <mxPoint x="1555" y="550" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="wlu-nSmHmYkWNPA1H_B9-6" edge="1" parent="1" source="cls_project" style="endArrow=diamondThin;endFill=1;endSize=16;html=1;strokeWidth=1.5;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cls_tracelink" value="0..*">
+          <mxGeometry relative="1" x="-0.6889" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="260" />
+              <mxPoint x="790" y="430" />
+            </Array>
+            <mxPoint x="870" y="60" as="sourcePoint" />
+            <mxPoint x="1310" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,14 +1,14 @@
 import type { NavItem, Requirement, UserStory, UMLNode, UMLEdge, AIMessage, DocSection } from './types';
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: 'overview', label: 'Project Overview', icon: '◎' },
-  { id: 'requirements', label: 'Requirements Engineer', icon: '◆' },
-  { id: 'user-stories', label: 'User Stories', icon: '▦' },
-  { id: 'modeling', label: 'System Modeling', icon: '⬡' },
-  { id: 'architecture', label: 'Architecture', icon: '⧉' },
-  { id: 'api-designer', label: 'API Designer', icon: '⟡' },
-  { id: 'documentation', label: 'Documentation', icon: '▤' },
-  { id: 'learning', label: 'Learning Dashboard', icon: '◈' },
+  { id: 'overview', label: 'Project Overview', icon: '::' },
+  { id: 'requirements', label: 'Requirements Engineer', icon: 'REQ' },
+  { id: 'user-stories', label: 'User Stories', icon: 'USR' },
+  { id: 'modeling', label: 'System Modeling', icon: 'UML' },
+  { id: 'architecture', label: 'Architecture', icon: 'ARC' },
+  { id: 'api-designer', label: 'API Designer', icon: 'API' },
+  { id: 'documentation', label: 'Documentation', icon: 'DOC' },
+  { id: 'learning', label: 'Learning Dashboard', icon: 'LRN' },
 ];
 
 export const MOCK_REQUIREMENTS: Requirement[] = [

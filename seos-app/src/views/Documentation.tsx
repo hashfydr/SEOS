@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
+import { runPipeline } from '../lib/pipeline';
+import { exportProjectAsMarkdown, exportProjectAsPDF } from '../lib/exportUtils';
 
 const Documentation: React.FC = () => {
   const docs = useStore((s) => s.docs);
+  const isStale = useStore((s) => s.staleArtifacts.docs);
+  const isGenerating = useStore((s) => s.pipeline.running);
   const [activeTab, setActiveTab] = useState(docs[0]?.id || 'srs');
 
   const activeDoc = docs.find(d => d.id === activeTab) || docs[0];
@@ -34,7 +38,7 @@ const Documentation: React.FC = () => {
       }
 
       if (line.trim().startsWith('# ')) {
-        elements.push(<h1 key={index} className="text-2xl font-bold text-seos-text mt-6 mb-2">{line.replace('# ', '')}</h1>);
+        elements.push(<h1 key={index} className="font-display text-3xl font-medium tracking-tight text-seos-text mt-6 mb-3">{line.replace('# ', '')}</h1>);
       } else if (line.trim().startsWith('## ')) {
         elements.push(<h2 key={index} className="text-xl font-semibold text-seos-text mt-5 mb-2">{line.replace('## ', '')}</h2>);
       } else if (line.trim().startsWith('### ')) {
@@ -87,9 +91,9 @@ const Documentation: React.FC = () => {
 
   const getBadgeColor = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'srs': return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
-      case 'sdd': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'readme': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'srs': return 'bg-seos-accent/20 text-seos-accent border-seos-accent/30';
+      case 'sdd': return 'bg-seos-amber/20 text-seos-amber border-seos-amber/30';
+      case 'readme': return 'bg-seos-green/20 text-seos-green border-seos-green/30';
       default: return 'bg-seos-surface-3 text-seos-text border-seos-border';
     }
   };
@@ -123,12 +127,59 @@ const Documentation: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeDoc ? (
           <>
-            <div className="p-6 border-b border-seos-border flex items-center gap-4 bg-seos-surface">
-              <h1 className="text-2xl font-bold">{activeDoc.title}</h1>
-              <span className={`text-xs px-2 py-1 rounded-md border font-medium ${getBadgeColor(activeDoc.type)}`}>
-                {activeDoc.type.toUpperCase()}
-              </span>
+            <div className="p-6 border-b border-seos-border flex items-center justify-between gap-4 bg-seos-surface flex-wrap">
+              <div className="flex items-center gap-4">
+                <h1 className="font-display text-2xl font-medium tracking-tight">{activeDoc.title}</h1>
+                <span className={`text-xs px-2 py-1 rounded-md border font-medium ${getBadgeColor(activeDoc.type)}`}>
+                  {activeDoc.type.toUpperCase()}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => exportProjectAsMarkdown()}
+                  className="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-seos-surface-2 border border-seos-border text-seos-accent hover:bg-seos-accent/15 transition-colors cursor-pointer flex items-center gap-1.5"
+                  title="Download as Markdown (.md)"
+                >
+                  <span>[↓]</span>
+                  <span>Export .md</span>
+                </button>
+                <button
+                  onClick={() => exportProjectAsPDF()}
+                  className="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-seos-accent text-white hover:bg-seos-accent-2 transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  title="Print / Save as PDF"
+                >
+                  <span>[P]</span>
+                  <span>Export PDF</span>
+                </button>
+                {isStale && (
+                  <button
+                    onClick={() => runPipeline({ stages: ['docs'] })}
+                    disabled={isGenerating}
+                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-seos-amber text-black hover:bg-seos-amber/90 transition-colors shrink-0 disabled:opacity-50 cursor-pointer shadow flex items-center gap-2"
+                  >
+                    <span>▲</span>
+                    <span>{isGenerating ? 'Regenerating...' : 'Regenerate Docs'}</span>
+                  </button>
+                )}
+              </div>
             </div>
+            {isStale && (
+              <div className="mx-8 mt-6 p-4 rounded-xl bg-seos-amber/10 border border-seos-amber/30 flex items-center justify-between gap-4 shrink-0 animate-fade-in text-sm text-seos-amber">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <span>
+                    <strong>Upstream changes detected:</strong> Your domain model or requirements have been updated. These documents may be stale.
+                  </span>
+                </div>
+                <button
+                  onClick={() => runPipeline({ stages: ['docs'] })}
+                  disabled={isGenerating}
+                  className="px-3 py-1 rounded-md text-xs font-medium bg-seos-amber/20 hover:bg-seos-amber/30 border border-seos-amber/40 transition-colors text-seos-amber shrink-0 cursor-pointer"
+                >
+                  Update Now
+                </button>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto p-8 bg-seos-bg">
               <div className="max-w-4xl mx-auto">
                 {renderMarkdown(activeDoc.content)}

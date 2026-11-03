@@ -7,3 +7,28 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+backend/.venv/
+env/
+venv/
+.coverage
+htmlcov/
+
+# Databases & local state
+*.db
+*.sqlite
+*.sqlite3
+
+# Test coverage & reports
+coverage/
+seos-app/coverage/
+
+# Environment files
+.env
+.env.*
+!.env.example

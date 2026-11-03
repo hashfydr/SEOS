@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: seos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: seos_user
+      POSTGRES_PASSWORD: seos_password
+      POSTGRES_DB: seos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seos_user -d seos_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: seos-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://seos_user:seos_password@postgres:5432/seos_db
+      - SECRET_KEY=seos-super-secret-production-jwt-key-ucs503-tiets
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  seos-app:
+    build:
+      context: ./seos-app
+      dockerfile: Dockerfile
+    container_name: seos-workspace
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

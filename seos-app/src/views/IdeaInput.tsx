@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import type { Requirement } from '../types';
 import { useStore } from '../store';
+import { runPipeline, clearProjectLayers, STAGE_LABEL } from '../lib/pipeline';
 
 export default function IdeaInput() {
   const storeProductIdea = useStore((s) => s.productIdea);
   const setStoreProductIdea = useStore((s) => s.setProductIdea);
-  const [idea, setIdea] = useState(storeProductIdea || 'Build a secure system for managing user roles and permissions with an audit log.');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [stepText, setStepText] = useState('');
-  
+  const [idea, setIdea] = useState(storeProductIdea);
+  const pipeline = useStore((s) => s.pipeline);
+  const isGenerating = pipeline.running;
+  const progress = pipeline.planned.length ? (pipeline.done.length / pipeline.planned.length) * 100 : 0;
+  const stepText = pipeline.stage
+    ? `${STAGE_LABEL[pipeline.stage]} · step ${pipeline.done.length + 1} of ${pipeline.planned.length}`
+    : '';
+
   const requirements = useStore((s) => s.requirements);
   const setRequirements = useStore((s) => s.setRequirements);
   const addRequirementToStore = useStore((s) => s.addRequirement);
@@ -18,10 +22,9 @@ export default function IdeaInput() {
   
   const [hasGenerated, setHasGenerated] = useState(requirements.length > 0);
 
+  // Follow the stored idea, including when a new project clears it
   useEffect(() => {
-    if (storeProductIdea) {
-      setIdea(storeProductIdea);
-    }
+    setIdea(storeProductIdea);
   }, [storeProductIdea]);
 
   useEffect(() => {
@@ -48,52 +51,20 @@ export default function IdeaInput() {
     }, 3000);
   };
 
-  const steps = [
-    'Parsing idea...',
-    'Extracting requirements...',
-    'Classifying priorities...',
-    'Done!'
-  ];
-
-  const handleGenerate = () => {
-    setIsGenerating(true);
-    setProgress(0);
-    setStepText(steps[0]);
-    
-    let currentStep = 0;
-    const stepInterval = setInterval(() => {
-      currentStep++;
-      if (currentStep < steps.length) {
-        setStepText(steps[currentStep]);
-      }
-    }, 500);
-
-    const startTime = Date.now();
-    const progressInterval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const p = Math.min((elapsed / 2000) * 100, 100);
-      setProgress(p);
-      
-      if (elapsed >= 2000) {
-        clearInterval(progressInterval);
-        clearInterval(stepInterval);
-        setIsGenerating(false);
-        // Requirements are already in the store (loaded from mockData)
-        // Just mark as generated to show the UI
-        setHasGenerated(true);
-        showToast('Requirements loaded successfully');
-      }
-    }, 50);
+  // Generates every layer from the idea; the store fills in stage by stage
+  const handleGenerate = async () => {
+    clearProjectLayers();
+    const ok = await runPipeline({ idea: idea.trim(), rename: true });
+    if (ok) showToast('Project generated — every layer is ready');
   };
 
-  const handleApproveAll = () => {
+  // Approve every requirement, then derive user stories from the approved set
+  const handleApproveAll = async () => {
     setIsApprovingAll(true);
-    setTimeout(() => {
-      const updated = requirements.map(r => ({ ...r, status: 'approved' as const }));
-      setRequirements(updated);
-      setIsApprovingAll(false);
-      showToast('Pipeline: User Stories generated → Navigate to User Stories tab');
-    }, 2000);
+    setRequirements(requirements.map((r) => ({ ...r, status: 'approved' as const })));
+    const ok = await runPipeline({ stages: ['stories'] });
+    setIsApprovingAll(false);
+    if (ok) showToast('User stories generated from approved requirements');
   };
 
   const deleteReq = (id: string) => {
@@ -170,7 +141,7 @@ export default function IdeaInput() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'Critical': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'Critical': return 'bg-red-500/20 text-seos-red border-red-500/30';
       case 'High': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
       case 'Medium': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
       case 'Low': return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
@@ -180,8 +151,8 @@ export default function IdeaInput() {
 
   const getTypeColor = (type: string) => {
     return type === 'Functional' 
-      ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
-      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      ? 'bg-seos-accent/20 text-seos-accent border-seos-accent/30' 
+      : 'bg-seos-green/20 text-seos-green border-seos-green/30';
   };
 
   const filteredRequirements = requirements
@@ -224,13 +195,13 @@ export default function IdeaInput() {
         
         {/* Header & Idea Input */}
         <div className="space-y-4">
-          <h1 className="text-2xl font-semibold text-seos-text-primary">Requirements Engineering</h1>
+          <h1 className="font-display text-3xl font-medium tracking-tight text-seos-text-primary">Requirements Engineering</h1>
           <p className="text-seos-text-secondary text-sm">Enter your product idea or feature request to generate structured requirements.</p>
           
           <div className="bg-seos-surface border border-seos-border rounded-lg p-1 focus-within:border-seos-accent transition-colors">
             <textarea
               className="w-full bg-transparent text-seos-text-primary p-4 outline-none resize-none min-h-[120px] placeholder-seos-text-secondary/50"
-              placeholder="Describe your idea here..."
+              placeholder="Describe your idea, e.g. A judicial organizer for courts that schedules hearings, avoids conflicts and manages case filings."
               value={idea}
               onChange={(e) => {
                 setIdea(e.target.value);
@@ -284,21 +255,21 @@ export default function IdeaInput() {
               <div className="flex space-x-4 text-seos-text-secondary">
                 <span className="font-medium text-seos-text-primary">{stats.total} Total</span>
                 <span>•</span>
-                <span className="text-indigo-400">{stats.functional} Functional</span>
+                <span className="text-seos-accent">{stats.functional} Functional</span>
                 <span>•</span>
-                <span className="text-emerald-400">{stats.nonFunctional} Non-Functional</span>
+                <span className="text-seos-green">{stats.nonFunctional} Non-Functional</span>
                 <span>•</span>
-                <span className="text-emerald-400">{stats.approved} Approved</span>
+                <span className="text-seos-green">{stats.approved} Approved</span>
                 <span>•</span>
                 <span>{stats.draft} Draft</span>
               </div>
               <button 
                 onClick={handleApproveAll}
                 disabled={isApprovingAll || stats.approved === stats.total || stats.total === 0}
-                className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/30 transition-colors disabled:opacity-50 text-xs font-medium flex items-center space-x-2"
+                className="px-4 py-1.5 bg-seos-green/20 text-seos-green border border-seos-green/30 rounded hover:bg-seos-green/30 transition-colors disabled:opacity-50 text-xs font-medium flex items-center space-x-2"
               >
                 {isApprovingAll ? (
-                  <svg className="animate-spin h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <svg className="animate-spin h-3 w-3 text-seos-green" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 ) : (
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                 )}
@@ -347,7 +318,7 @@ export default function IdeaInput() {
             {/* Requirements List */}
             <div className="space-y-3">
               {filteredRequirements.map((req, index) => (
-                <div key={req.id} className={`group relative bg-seos-surface border ${req.status === 'approved' ? 'border-emerald-500/30' : 'border-seos-border'} rounded-lg p-4 hover:border-seos-accent/50 transition-colors`}>
+                <div key={req.id} className={`group relative bg-seos-surface border ${req.status === 'approved' ? 'border-seos-green/30' : 'border-seos-border'} rounded-lg p-4 hover:border-seos-accent/50 transition-colors`}>
                   
                   {editingId === req.id ? (
                     <div className="space-y-4">
@@ -373,7 +344,7 @@ export default function IdeaInput() {
                             value={editForm.priority}
                             onChange={(e) => setEditForm({...editForm, priority: e.target.value as any})}
                           >
-                            <option value="Critical" className="text-red-400">Critical</option>
+                            <option value="Critical" className="text-seos-red">Critical</option>
                             <option value="High" className="text-amber-400">High</option>
                             <option value="Medium" className="text-cyan-400">Medium</option>
                             <option value="Low" className="text-gray-400">Low</option>
@@ -400,11 +371,11 @@ export default function IdeaInput() {
                       <div className="flex-1 space-y-2">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center space-x-2">
-                            <span className="text-xs font-mono text-seos-text-secondary bg-seos-background px-2 py-0.5 rounded border border-seos-border">{req.id.substring(0,6)}</span>
+                            <span className="text-xs font-mono text-seos-text-secondary bg-seos-background px-2 py-0.5 rounded border border-seos-border">{req.id}</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border ${getTypeColor(req.type)}`}>{req.type}</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full border ${getPriorityColor(req.priority)}`}>{req.priority}</span>
                             {req.status === 'approved' && (
-                              <span className="text-xs px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 flex items-center space-x-1">
+                              <span className="text-xs px-2 py-0.5 rounded-full border border-seos-green/30 bg-seos-green/10 text-seos-green flex items-center space-x-1">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
                                 <span>Approved</span>
                               </span>
@@ -414,7 +385,7 @@ export default function IdeaInput() {
                           <div className="flex items-center space-x-1">
                             <button 
                               onClick={() => toggleApprove(req.id)}
-                              className={`p-1.5 rounded-md transition-colors ${req.status === 'approved' ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-seos-text-secondary hover:text-seos-text-primary hover:bg-seos-surface-hover'}`}
+                              className={`p-1.5 rounded-md transition-colors ${req.status === 'approved' ? 'text-seos-green hover:bg-seos-green/10' : 'text-seos-text-secondary hover:text-seos-text-primary hover:bg-seos-surface-hover'}`}
                               title={req.status === 'approved' ? "Revoke approval" : "Approve requirement"}
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
@@ -422,7 +393,7 @@ export default function IdeaInput() {
                             <button onClick={() => startEdit(req)} className="p-1.5 text-seos-text-secondary hover:text-seos-text-primary hover:bg-seos-surface-hover rounded-md transition-colors" title="Edit">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
-                            <button onClick={() => deleteReq(req.id)} className="p-1.5 text-seos-text-secondary hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors opacity-0 group-hover:opacity-100" title="Delete">
+                            <button onClick={() => deleteReq(req.id)} className="p-1.5 text-seos-text-secondary hover:text-seos-red hover:bg-seos-red/10 rounded-md transition-colors opacity-0 group-hover:opacity-100" title="Delete">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                             
@@ -451,7 +422,7 @@ export default function IdeaInput() {
                                     </div>
                                   </div>
                                   <div className="border-t border-seos-border my-1"></div>
-                                  <button onClick={() => deleteReq(req.id)} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10">Delete</button>
+                                  <button onClick={() => deleteReq(req.id)} className="w-full text-left px-4 py-2 text-sm text-seos-red hover:bg-seos-red/10">Delete</button>
                                 </div>
                               )}
                             </div>

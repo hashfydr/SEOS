@@ -1,743 +1,353 @@
 /**
- * LLM Integration Layer for SEOS
+ * LLM provider layer for SEOS.
  *
- * Supports OpenAI, Google Gemini and Anthropic.
- * All calls are made directly from the browser.
- *   - OpenAI  → https://api.openai.com  (supports browser CORS)
- *   - Gemini  → https://generativelanguage.googleapis.com (supports browser CORS)
- *   - Anthropic → proxied through Vite dev-server to bypass CORS
+ * One entry point — `complete()` — over OpenAI, Google Gemini and Anthropic,
+ * called directly from the browser:
+ *   - OpenAI    → https://api.openai.com (browser CORS supported)
+ *   - Gemini    → https://generativelanguage.googleapis.com (browser CORS supported)
+ *   - Anthropic → proxied through the Vite dev server (see vite.config.ts)
  *
- * Tool calling lets the LLM mutate the Zustand store (add requirements, etc.).
+ * Gemini models are retired on a rolling basis, so the model is never
+ * hard-coded: we list the models the key can use, rank them, and if a call
+ * says a model is unavailable we follow the replacement the error suggests
+ * and fall through to the next candidate.
  */
 
 import { useStore } from '../store';
-import type { Requirement, UserStory } from '../types';
+import type { LLMProvider } from '../types';
 
-// ─── Build system prompt from current project context ───
-
-function buildSystemPrompt(): string {
-  const state = useStore.getState();
-  const reqSummary = state.requirements
-    .map((r) => `[${r.id}] (${r.type}, ${r.priority}) ${r.description}`)
-    .join('\n');
-  const storySummary = state.userStories
-    .map((s) => `[${s.id}] As a ${s.role}, I want to ${s.action} so that ${s.benefit}`)
-    .join('\n');
-
-  return `You are the SEOS AI Assistant — a Software Engineering Operating System AI.
-You help users engineer software projects by generating requirements, user stories,
-API designs, architecture recommendations, ER diagrams, and documentation.
-
-CURRENT PROJECT CONTEXT:
-========================
-Project Name: ${state.projectName}
-
-Requirements (${state.requirements.length}):
-${reqSummary || '(none yet)'}
-
-User Stories (${state.userStories.length}):
-${storySummary || '(none yet)'}
-
-Architecture Pattern: ${state.architecture.pattern}
-
-AVAILABLE TOOLS:
-You can call the following tools to modify the project. When the user asks you to
-"make a <X> app", "add requirements for <Y>", or similar, you MUST use the tools to
-update the project data. Always explain what you changed after calling a tool.
-
-IF THE USER PROPOSES A NEW APP IDEA OR MENTIONS A PROJECT TO BUILD:
-You MUST call the initialize_full_project tool FIRST to populate all system modules at once (project name, requirements, user stories, architecture pattern). Never update just the project name alone.
-
-RULES:
-- When generating requirements, create BOTH Functional and Non-Functional ones.
-- Assign realistic priority levels (Critical / High / Medium / Low).
-- Generate unique IDs like REQ-101, REQ-102, etc.
-- For user stories, follow the standard format: As a <role>, I want to <action>, so that <benefit>.
-- Always provide acceptance criteria for user stories.
-- Keep responses concise and structured.`;
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
 }
 
-// ─── Tool definitions (will be sent to the LLM) ───
-
-function generateDefaultUML(projectName: string) {
-  const cleanName = projectName.toLowerCase();
-  if (cleanName.includes('food') || cleanName.includes('delivery')) {
-    return {
-      nodes: [
-        {
-          id: 'node-user',
-          name: 'User',
-          type: 'actor' as const,
-          x: 50,
-          y: 100,
-          fields: [
-            { name: 'id', type: 'UUID', pk: true },
-            { name: 'name', type: 'String' },
-            { name: 'email', type: 'String' },
-            { name: 'phone', type: 'String' },
-          ],
-        },
-        {
-          id: 'node-restaurant',
-          name: 'Restaurant',
-          type: 'entity' as const,
-          x: 350,
-          y: 100,
-          fields: [
-            { name: 'id', type: 'UUID', pk: true },
-            { name: 'name', type: 'String' },
-            { name: 'cuisine', type: 'String' },
-            { name: 'rating', type: 'Float' },
-          ],
-        },
-        {
-          id: 'node-order',
-          name: 'Order',
-          type: 'entity' as const,
-          x: 200,
-          y: 350,
-          fields: [
-            { name: 'id', type: 'UUID', pk: true },
-            { name: 'userId', type: 'UUID', fk: true },
-            { name: 'restaurantId', type: 'UUID', fk: true },
-            { name: 'status', type: 'Enum' },
-            { name: 'totalAmount', type: 'Decimal' },
-          ],
-        },
-        {
-          id: 'node-driver',
-          name: 'DeliveryDriver',
-          type: 'service' as const,
-          x: 500,
-          y: 350,
-          fields: [
-            { name: 'id', type: 'UUID', pk: true },
-            { name: 'driverName', type: 'String' },
-            { name: 'vehicleType', type: 'String' },
-            { name: 'currentLocation', type: 'Point' },
-          ],
-        },
-      ],
-      edges: [
-        { id: 'e1', from: 'node-user', to: 'node-order', label: 'places', cardinalityFrom: '1', cardinalityTo: '0..*' },
-        { id: 'e2', from: 'node-restaurant', to: 'node-order', label: 'fulfills', cardinalityFrom: '1', cardinalityTo: '0..*' },
-        { id: 'e3', from: 'node-driver', to: 'node-order', label: 'delivers', cardinalityFrom: '1', cardinalityTo: '0..*' },
-      ],
-    };
-  }
-  
-  return {
-    nodes: [
-      {
-        id: 'node-user',
-        name: 'User',
-        type: 'actor' as const,
-        x: 80,
-        y: 120,
-        fields: [
-          { name: 'id', type: 'UUID', pk: true },
-          { name: 'username', type: 'String' },
-          { name: 'email', type: 'String' },
-          { name: 'role', type: 'String' },
-        ],
-      },
-      {
-        id: 'node-core',
-        name: `${projectName.replace(/\s+/g, '')}Item`,
-        type: 'entity' as const,
-        x: 380,
-        y: 120,
-        fields: [
-          { name: 'id', type: 'UUID', pk: true },
-          { name: 'title', type: 'String' },
-          { name: 'status', type: 'String' },
-          { name: 'created_at', type: 'Timestamp' },
-        ],
-      },
-      {
-        id: 'node-audit',
-        name: 'AuditLog',
-        type: 'service' as const,
-        x: 230,
-        y: 360,
-        fields: [
-          { name: 'id', type: 'UUID', pk: true },
-          { name: 'action', type: 'String' },
-          { name: 'performed_by', type: 'UUID', fk: true },
-          { name: 'timestamp', type: 'Timestamp' },
-        ],
-      },
-    ],
-    edges: [
-      { id: 'e1', from: 'node-user', to: 'node-core', label: 'manages', cardinalityFrom: '1', cardinalityTo: '0..*' },
-      { id: 'e2', from: 'node-user', to: 'node-audit', label: 'triggers', cardinalityFrom: '1', cardinalityTo: '0..*' },
-    ],
-  };
+export interface ToolSpec {
+  name: string;
+  description: string;
+  /** JSON Schema for the arguments */
+  parameters: Record<string, unknown>;
 }
 
-function generateDefaultOpenAPI(projectName: string) {
-  const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return `openapi: 3.1.0
-info:
-  title: ${projectName} API
-  version: 1.0.0
-  description: Comprehensive REST API for ${projectName}
-paths:
-  /api/v1/${slug}/items:
-    get:
-      summary: List all ${projectName} items
-      responses:
-        '200':
-          description: Successful response
-    post:
-      summary: Create a new item in ${projectName}
-      responses:
-        '201':
-          description: Item created
-  /api/v1/${slug}/items/{id}:
-    get:
-      summary: Get details for a specific ${projectName} item
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Item details
-    put:
-      summary: Update an item
-      responses:
-        '200':
-          description: Item updated
-    delete:
-      summary: Delete an item
-      responses:
-        '204':
-          description: Item deleted
-`;
+export interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
 }
 
-function generateDefaultDocs(projectName: string) {
-  return [
-    {
-      id: 'srs',
-      title: 'Software Requirements Specification',
-      type: 'SRS' as const,
-      content: `# Software Requirements Specification (SRS)
-# ${projectName}
-
-## 1. Introduction
-### 1.1 Purpose
-This document specifies the core software requirements for **${projectName}**, a cloud-native platform designed to deliver high availability and seamless user experience.
-
-### 1.2 Scope
-${projectName} provides end-to-end functionality including user management, real-time status updates, audit logging, and secure API access.
-
-## 2. System Overview
-The architecture is structured around microservices with a decoupled backend engine and modern frontend interface.
-`
-    },
-    {
-      id: 'sdd',
-      title: 'Software Design Document',
-      type: 'SDD' as const,
-      content: `# Software Design Document (SDD)
-# ${projectName}
-
-## 1. System Architecture
-${projectName} implements an event-driven architecture with dedicated services for processing requests, managing persistent data, and enforcing role-based access control.
-
-## 2. Component Design
-- **API Gateway**: Handles routing and CORS.
-- **Core Service**: Processes business logic.
-- **Database Layer**: Relational data store for structured entities.
-`
-    },
-    {
-      id: 'readme',
-      title: 'README',
-      type: 'README' as const,
-      content: `# ${projectName}
-
-Welcome to **${projectName}**! This repository contains the system specifications, API designs, user stories, and system architecture.
-
-## Getting Started
-\`\`\`bash
-npm install
-npm run dev
-\`\`\`
-`
-    }
-  ];
+export interface Completion {
+  text: string;
+  toolCalls: ToolCall[];
 }
 
-interface ToolResult {
-  tool: string;
-  result: string;
+export interface CompleteOptions {
+  system: string;
+  messages: ChatTurn[];
+  tools?: ToolSpec[];
+  /** Ask the model for a single JSON object (not combinable with tools) */
+  json?: boolean;
+  maxTokens?: number;
+  temperature?: number;
 }
 
-function executeToolCall(toolName: string, args: Record<string, unknown>): ToolResult {
+/** An error whose message is safe and useful to show the user as-is. */
+export class LLMError extends Error {}
+
+export async function complete(opts: CompleteOptions): Promise<Completion> {
   const store = useStore.getState();
+  let provider = store.selectedProvider;
+  let apiKey = store.apiKeys[provider]?.trim();
 
-  switch (toolName) {
-    case 'initialize_full_project': {
-      const name = (args.projectName as string) || (args.name as string);
-      const reqs = (args.requirements as Requirement[]) || [];
-      const stories = (args.userStories as UserStory[]) || [];
-      const arch = args.architecture as { pattern?: string; rationale?: string; techStack?: string[] } | undefined;
-      const ideaText = (args.productIdea as string) || (args.idea as string) || `System specification and design for ${name}.`;
+  // If the currently selected provider has no key, check if any other provider has an active key
+  if (!apiKey) {
+    const providers: LLMProvider[] = ['groq', 'nvidia', 'gemini', 'openai', 'anthropic'];
+    const availableProvider = providers.find((p) => !!store.apiKeys[p]?.trim());
+    if (availableProvider) {
+      provider = availableProvider;
+      apiKey = store.apiKeys[availableProvider]!.trim();
+      store.setSelectedProvider(availableProvider);
+    }
+  }
 
-      if (name) store.setProjectName(name);
-      store.setProductIdea(ideaText);
-
-      if (reqs.length > 0) store.setRequirements(reqs);
-      if (stories.length > 0) store.setUserStories(stories);
-      
-      // Sync Architecture
-      store.setArchitecture({
-        pattern: arch?.pattern || 'Event-Driven Microservices',
-        rationale: arch?.rationale || `High availability and scalable architecture tailored for ${name}.`,
-        components: [
-          { name: 'API Gateway', tech: 'Kong / Nginx', purpose: 'Routes incoming client requests and enforces rate limits' },
-          { name: 'Auth Service', tech: 'Node.js / OAuth2', purpose: 'Handles user identity, JWT issuing, and access control' },
-          { name: `${name} Core Engine`, tech: 'Go / Python', purpose: 'Processes primary business logic and domain workflows' },
-          { name: 'Primary Database', tech: 'PostgreSQL', purpose: 'Relational data store for transactional data' },
-        ],
-        tradeoffs: [
-          { pro: 'High scalability and decoupled domain services', con: 'Increased operational overhead and telemetry setup' }
-        ]
-      });
-
-      // Sync UML / System Modeling
-      const defaultUML = generateDefaultUML(name);
-      store.setUMLNodes(defaultUML.nodes);
-      store.setUMLEdges(defaultUML.edges);
-
-      // Sync API Specification
-      store.setOpenapiYaml(generateDefaultOpenAPI(name));
-
-      // Sync Documentation
-      store.setDocs(generateDefaultDocs(name));
-
-      return {
-        tool: toolName,
-        result: `Initialized full project "${name}" across all modules (Requirements, Stories, System Modeling, Architecture, API Designer, and Docs)!`
-      };
-    }
-    case 'set_project_name': {
-      const name = args.name as string;
-      store.setProjectName(name);
-      return { tool: toolName, result: `Updated project name to ${name}` };
-    }
-    case 'set_requirements': {
-      const reqs = args.requirements as Requirement[];
-      store.setRequirements(reqs);
-      return { tool: toolName, result: `Set ${reqs.length} requirements` };
-    }
-    case 'add_requirement': {
-      const req = args as unknown as Requirement;
-      store.addRequirement(req);
-      return { tool: toolName, result: `Added requirement ${req.id}` };
-    }
-    case 'set_user_stories': {
-      const stories = args.stories as UserStory[];
-      store.setUserStories(stories);
-      return { tool: toolName, result: `Set ${stories.length} user stories` };
-    }
-    case 'add_user_story': {
-      const story = args as unknown as UserStory;
-      store.addUserStory(story);
-      return { tool: toolName, result: `Added user story ${story.id}` };
-    }
-    case 'set_api_spec': {
-      const yaml = args.yaml as string;
-      store.setOpenapiYaml(yaml);
-      return { tool: toolName, result: 'Updated OpenAPI specification' };
-    }
-    case 'set_architecture': {
-      const arch = args as unknown as { pattern: string; rationale: string; components: any[]; tradeoffs: any[] };
-      store.setArchitecture(arch);
-      return { tool: toolName, result: `Set architecture: ${arch.pattern}` };
-    }
-    default:
-      return { tool: toolName, result: `Unknown tool: ${toolName}` };
+  if (!apiKey) {
+    throw new LLMError(
+      `No API key configured. Paste ANY API key (Groq, NVIDIA NIM, Gemini, OpenAI, Claude) directly into the chat or click the model button below to activate and play.`,
+    );
+  }
+  switch (provider) {
+    case 'gemini':
+      return completeGemini(apiKey, opts);
+    case 'openai':
+      return completeOpenAI(apiKey, opts);
+    case 'anthropic':
+      return completeAnthropic(apiKey, opts);
+    case 'groq':
+      return completeGroq(apiKey, opts);
+    case 'nvidia':
+      return completeNvidia(apiKey, opts);
   }
 }
 
-// ─── Tool schema for OpenAI / Anthropic compatible format ───
+/** Parse a JSON object out of model output, tolerating code fences and stray prose. */
+export function parseJSON<T>(text: string): T {
+  const cleaned = text.replace(/```(?:json)?/gi, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end <= start) throw new LLMError('The model did not return JSON. Try again.');
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as T;
+  } catch {
+    throw new LLMError('The model returned malformed JSON (the answer may have been cut off). Try again.');
+  }
+}
 
-const TOOLS_SCHEMA = [
-  {
-    type: 'function' as const,
-    function: {
-      name: 'initialize_full_project',
-      description: 'Initialize or update the entire project (name, requirements, user stories, architecture pattern) in ONE SINGLE ACTION when starting a new app idea.',
-      parameters: {
-        type: 'object',
-        properties: {
-          projectName: { type: 'string', description: 'The overall name of the application or system.' },
-          requirements: {
-            type: 'array',
-            description: 'Array of at least 5-8 detailed functional and non-functional requirements.',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', description: 'Unique ID like REQ-101' },
-                type: { type: 'string', enum: ['Functional', 'Non-Functional'] },
-                priority: { type: 'string', enum: ['Critical', 'High', 'Medium', 'Low'] },
-                description: { type: 'string' },
-                status: { type: 'string', enum: ['draft', 'approved', 'rejected'] },
-              },
-              required: ['id', 'type', 'priority', 'description', 'status'],
-            },
-          },
-          userStories: {
-            type: 'array',
-            description: 'Array of corresponding agile user stories with acceptance criteria.',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', description: 'Unique ID like US-101' },
-                role: { type: 'string' },
-                action: { type: 'string' },
-                benefit: { type: 'string' },
-                criteria: { type: 'array', items: { type: 'string' } },
-                status: { type: 'string', enum: ['draft', 'approved', 'rejected'] },
-                reqId: { type: 'string' },
-              },
-              required: ['id', 'role', 'action', 'benefit', 'criteria', 'status', 'reqId'],
-            },
-          },
-          architecture: {
-            type: 'object',
-            description: 'Proposed system architecture pattern and rationale.',
-            properties: {
-              pattern: { type: 'string', description: 'e.g. Microservices, Event-Driven, Monolith' },
-              rationale: { type: 'string', description: 'Why this architecture is chosen' },
-              techStack: { type: 'array', items: { type: 'string' } },
-            },
-            required: ['pattern', 'rationale'],
-          },
-        },
-        required: ['projectName', 'requirements', 'userStories'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'set_project_name',
-      description: 'Updates the name of the project when the user indicates a new project idea or name.',
-      parameters: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'The new project name.' },
-        },
-        required: ['name'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'set_requirements',
-      description: 'Replace ALL project requirements with a new set. Use when the user asks to generate requirements for a new app idea.',
-      parameters: {
-        type: 'object',
-        properties: {
-          requirements: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', description: 'Unique ID like REQ-101' },
-                type: { type: 'string', enum: ['Functional', 'Non-Functional'] },
-                priority: { type: 'string', enum: ['Critical', 'High', 'Medium', 'Low'] },
-                description: { type: 'string' },
-                status: { type: 'string', enum: ['draft', 'approved', 'rejected'] },
-              },
-              required: ['id', 'type', 'priority', 'description', 'status'],
-            },
-          },
-        },
-        required: ['requirements'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'add_requirement',
-      description: 'Add a single new requirement to the project.',
-      parameters: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          type: { type: 'string', enum: ['Functional', 'Non-Functional'] },
-          priority: { type: 'string', enum: ['Critical', 'High', 'Medium', 'Low'] },
-          description: { type: 'string' },
-          status: { type: 'string', enum: ['draft', 'approved', 'rejected'] },
-        },
-        required: ['id', 'type', 'priority', 'description', 'status'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'set_user_stories',
-      description: 'Replace ALL user stories with a new set.',
-      parameters: {
-        type: 'object',
-        properties: {
-          stories: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string', description: 'Unique ID like US-101' },
-                role: { type: 'string' },
-                action: { type: 'string' },
-                benefit: { type: 'string' },
-                criteria: { type: 'array', items: { type: 'string' } },
-                status: { type: 'string', enum: ['draft', 'approved', 'rejected'] },
-                reqId: { type: 'string' },
-              },
-              required: ['id', 'role', 'action', 'benefit', 'criteria', 'status', 'reqId'],
-            },
-          },
-        },
-        required: ['stories'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'add_user_story',
-      description: 'Add a single new user story.',
-      parameters: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          role: { type: 'string' },
-          action: { type: 'string' },
-          benefit: { type: 'string' },
-          criteria: { type: 'array', items: { type: 'string' } },
-          status: { type: 'string', enum: ['draft', 'approved', 'rejected'] },
-          reqId: { type: 'string' },
-        },
-        required: ['id', 'role', 'action', 'benefit', 'criteria', 'status', 'reqId'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'set_api_spec',
-      description: 'Replace the OpenAPI YAML specification.',
-      parameters: {
-        type: 'object',
-        properties: {
-          yaml: { type: 'string', description: 'Full OpenAPI 3.1 YAML string' },
-        },
-        required: ['yaml'],
-      },
-    },
-  },
-  {
-    type: 'function' as const,
-    function: {
-      name: 'set_architecture',
-      description: 'Set the architecture recommendation for the project.',
-      parameters: {
-        type: 'object',
-        properties: {
-          pattern: { type: 'string' },
-          rationale: { type: 'string' },
-          components: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                tech: { type: 'string' },
-                purpose: { type: 'string' },
-              },
-              required: ['name', 'tech', 'purpose'],
-            },
-          },
-          tradeoffs: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                pro: { type: 'string' },
-                con: { type: 'string' },
-              },
-              required: ['pro', 'con'],
-            },
-          },
-        },
-        required: ['pattern', 'rationale', 'components', 'tradeoffs'],
-      },
-    },
-  },
-];
+function errorMessage(body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    return parsed?.error?.message || body;
+  } catch {
+    return body;
+  }
+}
 
-// ─── Provider-specific API callers ───
+// ─── Gemini ───
 
-async function callOpenAI(apiKey: string, messages: { role: string; content: string }[]): Promise<string> {
-  const body = {
-    model: 'gpt-4o',
-    messages: [{ role: 'system', content: buildSystemPrompt() }, ...messages],
-    tools: TOOLS_SCHEMA,
-    tool_choice: 'auto',
-    temperature: 0.7,
-    max_tokens: 4096,
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+// Session cache: the model that last worked for this key
+let geminiModel: { key: string; model: string } | null = null;
+let geminiListing: { key: string; models: string[] } | null = null;
+
+// Variants that can't do plain text + function calling
+const GEMINI_EXCLUDE = /(image|tts|audio|live|embed|vision|learnlm|gemma|aqa|robotics|computer|native|imagen|veo)/i;
+
+/** Higher is better: newest version first, Flash over Pro (speed + free-tier limits), stable over preview. */
+function rankGeminiModel(name: string): number | null {
+  if (GEMINI_EXCLUDE.test(name)) return null;
+  const m = name.match(/^gemini-(\d+(?:\.\d+)?)-(flash|pro)(-lite)?(-.+)?$/);
+  if (!m) return null;
+  const [, version, family, lite, suffix] = m;
+  let score = parseFloat(version) * 100;
+  if (family === 'flash') score += 20;
+  if (lite) score -= 15;
+  if (suffix) score -= /^-\d{3}$/.test(suffix) ? 1 : 8; // pinned "-001" is fine; preview/exp less so
+  return score;
+}
+
+async function listGeminiModels(apiKey: string): Promise<string[]> {
+  if (geminiListing?.key === apiKey) return geminiListing.models;
+  const resp = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(apiKey)}&pageSize=200`);
+  if (!resp.ok) {
+    const body = await resp.text();
+    if (resp.status === 400 || resp.status === 403) {
+      throw new LLMError(`Gemini rejected the API key: ${errorMessage(body)}`);
+    }
+    return [];
+  }
+  const data = await resp.json();
+  const models: string[] = (data.models || [])
+    .filter((m: { supportedGenerationMethods?: string[] }) => m.supportedGenerationMethods?.includes('generateContent'))
+    .map((m: { name: string }) => m.name.replace(/^models\//, ''))
+    .map((name: string) => ({ name, score: rankGeminiModel(name) }))
+    .filter((m: { score: number | null }) => m.score !== null)
+    .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+    .map((m: { name: string }) => m.name);
+  geminiListing = { key: apiKey, models };
+  return models;
+}
+
+/** Model names an error message recommends instead, e.g. "…use models/gemini-3.8-flash…" */
+function suggestedModels(body: string, failed: string): string[] {
+  return [...body.matchAll(/models\/(gemini-[\w.-]+)/g)]
+    .map((m) => m[1].replace(/[.-]+$/, ''))
+    .filter((name) => name !== failed);
+}
+
+// Models that answered "not available" for this key — skipped on later calls
+const retiredGeminiModels = new Set<string>();
+
+// Waits before retrying the same model when Gemini is overloaded (500/503)
+const BUSY_RETRY_DELAYS_MS = [2000, 4000, 8000];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Seconds Gemini asks us to wait on a 429, from `"retryDelay": "7s"` if present. */
+function retryDelaySeconds(body: string): number | null {
+  const m = body.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+  return m ? Math.ceil(parseFloat(m[1])) : null;
+}
+
+/**
+ * Calls generateContent, working through candidate models:
+ * - retired model (404)        → follow the suggested replacement, else next model
+ * - overloaded (500/503)       → retry the same model with backoff, then next model
+ * - rate limited (429)         → wait if Gemini asks for a short delay, else next model
+ *                                (free-tier quotas are per model)
+ */
+async function callGemini(apiKey: string, body: unknown): Promise<{ model: string; data: any }> {
+  const { setLlmNotice } = useStore.getState();
+  const listed = await listGeminiModels(apiKey);
+  let queue = [
+    ...(geminiModel?.key === apiKey ? [geminiModel.model] : []),
+    ...listed,
+  ];
+  if (queue.length === 0) queue = ['gemini-flash-latest'];
+  const tried = new Set<string>();
+  let lastTransient: 'busy' | 'limited' | null = null;
+
+  try {
+    while (queue.length) {
+      const model = queue.shift()!;
+      if (tried.has(model) || retiredGeminiModels.has(model)) continue;
+      tried.add(model);
+
+      for (let attempt = 0; ; attempt++) {
+        const resp = await fetch(`${GEMINI_BASE}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (resp.ok) {
+          geminiModel = { key: apiKey, model };
+          return { model, data: await resp.json() };
+        }
+
+        const errBody = await resp.text();
+        const unavailable =
+          resp.status === 404 ||
+          (resp.status === 400 && /not (found|available|supported)|no longer|deprecated/i.test(errBody));
+        if (unavailable) {
+          console.warn(`[SEOS LLM] ${model} unavailable, trying next model`);
+          retiredGeminiModels.add(model);
+          queue = [...suggestedModels(errBody, model), ...queue];
+          break;
+        }
+        if (resp.status === 400 && /api key/i.test(errBody)) {
+          throw new LLMError(`Gemini rejected the API key: ${errorMessage(errBody)}`);
+        }
+
+        const busy = resp.status === 500 || resp.status === 503;
+        if (busy && attempt < BUSY_RETRY_DELAYS_MS.length) {
+          const wait = BUSY_RETRY_DELAYS_MS[attempt];
+          console.warn(`[SEOS LLM] ${model} overloaded (${resp.status}), retry ${attempt + 1} in ${wait / 1000}s`);
+          setLlmNotice(`Gemini is busy — retrying in ${wait / 1000}s (${attempt + 1}/${BUSY_RETRY_DELAYS_MS.length})`);
+          await sleep(wait);
+          continue;
+        }
+        if (resp.status === 429) {
+          const delay = retryDelaySeconds(errBody);
+          if (attempt === 0 && delay !== null && delay <= 15) {
+            setLlmNotice(`Gemini rate limit — waiting ${delay}s`);
+            await sleep(delay * 1000);
+            continue;
+          }
+        }
+        if (busy || resp.status === 429) {
+          lastTransient = busy ? 'busy' : 'limited';
+          console.warn(`[SEOS LLM] ${model} ${busy ? 'still overloaded' : 'rate limited'}, switching model`);
+          setLlmNotice(`${model} is ${busy ? 'overloaded' : 'rate limited'} — switching model…`);
+          break;
+        }
+        throw new LLMError(`Gemini API error ${resp.status}: ${errorMessage(errBody)}`);
+      }
+    }
+  } finally {
+    setLlmNotice(null);
+  }
+
+  if (lastTransient === 'limited') {
+    throw new LLMError('Gemini free-tier rate limit reached on every available model. Wait about a minute, then press Retry.');
+  }
+  if (lastTransient === 'busy') {
+    throw new LLMError('Gemini is overloaded on every available model right now. Wait a moment, then press Retry — finished layers are kept.');
+  }
+  throw new LLMError(`None of the Gemini models available to this key worked (tried: ${[...tried].join(', ')}).`);
+}
+
+async function completeGemini(apiKey: string, opts: CompleteOptions): Promise<Completion> {
+  const body: Record<string, unknown> = {
+    system_instruction: { parts: [{ text: opts.system }] },
+    contents: opts.messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    generationConfig: {
+      temperature: opts.temperature ?? 0.7,
+      maxOutputTokens: opts.maxTokens ?? 8192,
+      ...(opts.json ? { responseMimeType: 'application/json' } : {}),
+    },
   };
+  if (opts.tools?.length) {
+    body.tools = [{ function_declarations: opts.tools }];
+  }
+
+  const { model, data } = await callGemini(apiKey, body);
+  useStore.getState().setActiveModel(model);
+
+  const candidate = data.candidates?.[0];
+  const parts: { text?: string; thought?: boolean; functionCall?: { name: string; args?: Record<string, unknown> } }[] =
+    candidate?.content?.parts || [];
+  if (!parts.length) {
+    const reason = candidate?.finishReason || data.promptFeedback?.blockReason || 'no content';
+    throw new LLMError(`Gemini returned an empty answer (${reason}). Try rephrasing or try again.`);
+  }
+  return {
+    text: parts.filter((p) => p.text && !p.thought).map((p) => p.text).join(''),
+    toolCalls: parts.filter((p) => p.functionCall).map((p) => ({ name: p.functionCall!.name, args: p.functionCall!.args || {} })),
+  };
+}
+
+// ─── OpenAI ───
+
+const OPENAI_MODEL = 'gpt-4o';
+
+async function completeOpenAI(apiKey: string, opts: CompleteOptions): Promise<Completion> {
+  const body: Record<string, unknown> = {
+    model: OPENAI_MODEL,
+    messages: [{ role: 'system', content: opts.system }, ...opts.messages],
+    temperature: opts.temperature ?? 0.7,
+    max_tokens: opts.maxTokens ?? 8192,
+  };
+  if (opts.tools?.length) {
+    body.tools = opts.tools.map((t) => ({ type: 'function', function: t }));
+    body.tool_choice = 'auto';
+  }
+  if (opts.json) body.response_format = { type: 'json_object' };
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
   });
-
   if (!resp.ok) {
-    const errBody = await resp.text();
-    throw new Error(`OpenAI API error ${resp.status}: ${errBody}`);
+    throw new LLMError(`OpenAI API error ${resp.status}: ${errorMessage(await resp.text())}`);
   }
-
   const data = await resp.json();
-  const choice = data.choices?.[0];
-
-  // Handle tool calls
-  if (choice?.message?.tool_calls?.length) {
-    const toolResults: string[] = [];
-    for (const tc of choice.message.tool_calls) {
-      const args = JSON.parse(tc.function.arguments);
-      const result = executeToolCall(tc.function.name, args);
-      toolResults.push(result.result);
-    }
-    // If there's also text content, combine
-    const textContent = choice.message.content || '';
-    return textContent + (toolResults.length ? `\n\n✅ **Actions taken:** ${toolResults.join(', ')}` : '');
-  }
-
-  return choice?.message?.content || 'No response generated.';
-}
-
-async function callGemini(apiKey: string, messages: { role: string; content: string }[]): Promise<string> {
-  // Dynamically resolve an available model for this API Key
-  let modelName = 'gemini-1.5-flash';
-  try {
-    const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (listResp.ok) {
-      const listData = await listResp.json();
-      if (listData.models && Array.isArray(listData.models)) {
-        const validModels: { name: string; supportedGenerationMethods?: string[] }[] = listData.models.filter(
-          (m: { name: string; supportedGenerationMethods?: string[] }) =>
-            m.supportedGenerationMethods?.includes('generateContent')
-        );
-
-        const match =
-          validModels.find((m) => m.name.includes('flash-002') || m.name.includes('flash-001') || m.name.includes('1.5-flash') || m.name.includes('2.0-flash')) ||
-          validModels.find((m) => m.name.includes('flash')) ||
-          validModels.find((m) => m.name.includes('pro')) ||
-          validModels[0];
-
-        if (match) {
-          modelName = match.name.replace(/^models\//, '');
-          console.log(`[SEOS LLM] Auto-selected Gemini model: ${modelName}`);
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[SEOS LLM] Failed to list models, defaulting to gemini-1.5-flash:', e);
-  }
-
-  // Convert messages to Gemini format
-  const contents = messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-
-  // Gemini tool format
-  const tools = [{
-    function_declarations: TOOLS_SCHEMA.map(t => ({
-      name: t.function.name,
-      description: t.function.description,
-      parameters: t.function.parameters,
+  useStore.getState().setActiveModel(data.model || OPENAI_MODEL);
+  const message = data.choices?.[0]?.message;
+  return {
+    text: message?.content || '',
+    toolCalls: (message?.tool_calls || []).map((tc: { function: { name: string; arguments: string } }) => ({
+      name: tc.function.name,
+      args: JSON.parse(tc.function.arguments || '{}'),
     })),
-  }];
-
-  const body = {
-    system_instruction: { parts: [{ text: buildSystemPrompt() }] },
-    contents,
-    tools,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 4096,
-    },
   };
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-  );
-
-  if (!resp.ok) {
-    const errBody = await resp.text();
-    throw new Error(`Gemini API error ${resp.status}: ${errBody}`);
-  }
-
-  const data = await resp.json();
-  const candidate = data.candidates?.[0]?.content;
-
-  if (!candidate?.parts) return 'No response generated.';
-
-  let textContent = '';
-  const toolResults: string[] = [];
-
-  for (const part of candidate.parts) {
-    if (part.text) {
-      textContent += part.text;
-    }
-    if (part.functionCall) {
-      const result = executeToolCall(part.functionCall.name, part.functionCall.args || {});
-      toolResults.push(result.result);
-    }
-  }
-
-  return textContent + (toolResults.length ? `\n\n✅ **Actions taken:** ${toolResults.join(', ')}` : '');
 }
 
-async function callAnthropic(apiKey: string, messages: { role: string; content: string }[]): Promise<string> {
-  // Anthropic tool format
-  const anthropicTools = TOOLS_SCHEMA.map((t) => ({
-    name: t.function.name,
-    description: t.function.description,
-    input_schema: t.function.parameters,
-  }));
+// ─── Anthropic ───
 
-  const body = {
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
-    system: buildSystemPrompt(),
-    messages: messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-    tools: anthropicTools,
+const ANTHROPIC_MODEL = 'claude-sonnet-5-5';
+
+async function completeAnthropic(apiKey: string, opts: CompleteOptions): Promise<Completion> {
+  const body: Record<string, unknown> = {
+    model: ANTHROPIC_MODEL,
+    max_tokens: opts.maxTokens ?? 8192,
+    system: opts.json ? `${opts.system}\n\nRespond with a single JSON object and nothing else.` : opts.system,
+    messages: opts.messages,
   };
+  if (opts.tools?.length) {
+    body.tools = opts.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }));
+  }
 
-  // Goes through Vite proxy to avoid CORS (see vite.config.ts)
+  // Goes through the Vite proxy to avoid CORS (see vite.config.ts)
   const resp = await fetch('/api/anthropic/v1/messages', {
     method: 'POST',
     headers: {
@@ -748,78 +358,273 @@ async function callAnthropic(apiKey: string, messages: { role: string; content: 
     },
     body: JSON.stringify(body),
   });
-
   if (!resp.ok) {
-    const errBody = await resp.text();
-    throw new Error(`Anthropic API error ${resp.status}: ${errBody}`);
+    throw new LLMError(`Anthropic API error ${resp.status}: ${errorMessage(await resp.text())}`);
   }
-
   const data = await resp.json();
-
-  let textContent = '';
-  const toolResults: string[] = [];
-
-  for (const block of data.content || []) {
-    if (block.type === 'text') {
-      textContent += block.text;
-    }
-    if (block.type === 'tool_use') {
-      const result = executeToolCall(block.name, block.input || {});
-      toolResults.push(result.result);
-    }
-  }
-
-  return textContent + (toolResults.length ? `\n\n✅ **Actions taken:** ${toolResults.join(', ')}` : '');
+  useStore.getState().setActiveModel(data.model || ANTHROPIC_MODEL);
+  const blocks: { type: string; text?: string; name?: string; input?: Record<string, unknown> }[] = data.content || [];
+  return {
+    text: blocks.filter((b) => b.type === 'text').map((b) => b.text).join(''),
+    toolCalls: blocks.filter((b) => b.type === 'tool_use').map((b) => ({ name: b.name!, args: b.input || {} })),
+  };
 }
 
-// ─── Public API ───
+// ─── Groq ───
 
-export async function sendChatMessage(userMessage: string): Promise<string> {
-  const state = useStore.getState();
-  const { apiKeys, selectedProvider, messages } = state;
-  const apiKey = apiKeys[selectedProvider];
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
 
-  if (!apiKey?.trim()) {
-    return `⚠️ No API key configured for **${selectedProvider}**. Please click the model selector (bottom-left of the chat input) → "Manage API Keys..." to add one.`;
-  }
+// Session cache: the model that last worked for this key
+let groqModel: { key: string; model: string } | null = null;
+let groqListing: { key: string; models: string[] } | null = null;
+const retiredGroqModels = new Set<string>();
 
-  // Build conversation history (last 20 messages for context window)
-  let history = messages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .slice(-20)
-    .map((m) => ({ role: m.role as string, content: m.content }));
+const GROQ_EXCLUDE = /(whisper|orpheus|audio|tts|guard|prompt-guard|safetyprompt|embed|vision)/i;
 
-  // Add the current user message if it's not already the last message in history
-  // (Zustand getState() might already have it if addMessage was called synchronously)
-  if (history.length === 0 || history[history.length - 1].content !== userMessage) {
-    history.push({ role: 'user', content: userMessage });
-  }
+/** Rank Groq models: prioritize active Llama 3.x, then Qwen / Mixtral / Gemma */
+function rankGroqModel(name: string): number | null {
+  if (GROQ_EXCLUDE.test(name)) return null;
+  let score = 0;
+  if (/llama-3\.3/i.test(name)) score += 400;
+  else if (/llama-3\.1/i.test(name)) score += 350;
+  else if (/llama-3/i.test(name) || /llama3/i.test(name)) score += 300;
+  else if (/qwen/i.test(name)) score += 250;
+  else if (/mixtral/i.test(name)) score += 200;
+  else if (/gemma/i.test(name)) score += 150;
+  else score += 100;
 
-  // Ensure strict alternation of roles (required by Gemini and good practice)
-  const collapsedHistory: { role: string; content: string }[] = [];
-  for (const msg of history) {
-    if (collapsedHistory.length > 0 && collapsedHistory[collapsedHistory.length - 1].role === msg.role) {
-      collapsedHistory[collapsedHistory.length - 1].content += '\\n\\n' + msg.content;
-    } else {
-      collapsedHistory.push({ ...msg });
-    }
-  }
-  history = collapsedHistory;
+  if (/instant/i.test(name) || /8b/i.test(name)) score += 60; // Highly stable on free tier
+  else if (/70b/i.test(name)) score += 30;
+  if (/versatile/i.test(name)) score += 10;
+  if (/preview|deprecated/i.test(name)) score -= 40;
 
+  return score;
+}
+
+async function listGroqModels(apiKey: string): Promise<string[]> {
+  if (groqListing?.key === apiKey) return groqListing.models;
   try {
-    switch (selectedProvider) {
-      case 'openai':
-        return await callOpenAI(apiKey, history);
-      case 'gemini':
-        return await callGemini(apiKey, history);
-      case 'anthropic':
-        return await callAnthropic(apiKey, history);
-      default:
-        return 'Unknown provider.';
+    let resp = await fetch(`${GROQ_BASE}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!resp.ok) {
+      resp = await fetch('/api/groq/openai/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
     }
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`[SEOS LLM] Error calling ${selectedProvider}:`, err);
-    return `❌ **API Error (${selectedProvider}):** ${errorMessage}`;
+    if (resp.ok) {
+      const data = await resp.json();
+      const models: string[] = (data.data || [])
+        .map((m: { id: string }) => m.id)
+        .map((id: string) => ({ id, score: rankGroqModel(id) }))
+        .filter((m: { score: number | null }) => m.score !== null)
+        .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+        .map((m: { id: string }) => m.id);
+
+      if (models.length > 0) {
+        groqListing = { key: apiKey, models };
+        return models;
+      }
+    }
+  } catch {
+    // Fall back to built-in candidates
   }
+
+  return [
+    'llama-3.1-8b-instant',
+    'llama3-8b-8192',
+    'llama-3.3-70b-versatile',
+    'llama-3.3-70b-specdec',
+    'llama3-70b-8192',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it',
+  ];
+}
+
+async function completeGroq(apiKey: string, opts: CompleteOptions): Promise<Completion> {
+  const listed = await listGroqModels(apiKey);
+  let queue = [
+    ...(groqModel?.key === apiKey ? [groqModel.model] : []),
+    ...listed,
+    'llama-3.1-8b-instant',
+    'llama3-8b-8192',
+    'mixtral-8x7b-32768',
+  ];
+  const tried = new Set<string>();
+
+  while (queue.length > 0) {
+    const model = queue.shift()!;
+    if (tried.has(model) || retiredGroqModels.has(model)) continue;
+    tried.add(model);
+
+    const body: Record<string, unknown> = {
+      model,
+      messages: [{ role: 'system', content: opts.system }, ...opts.messages],
+      temperature: opts.temperature ?? 0.7,
+      max_tokens: opts.maxTokens ?? 8192,
+    };
+    if (opts.tools?.length) {
+      body.tools = opts.tools.map((t) => ({ type: 'function', function: t }));
+      body.tool_choice = 'auto';
+    }
+    if (opts.json) body.response_format = { type: 'json_object' };
+
+    let resp: Response;
+    try {
+      resp = await fetch(`${GROQ_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (netErr: any) {
+      try {
+        resp = await fetch('/api/groq/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+      } catch {
+        throw new LLMError(`Failed to connect to Groq API: ${netErr.message || 'Network error'}`);
+      }
+    }
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const active = data.model || model;
+      groqModel = { key: apiKey, model: active };
+      useStore.getState().setActiveModel(active);
+      const message = data.choices?.[0]?.message;
+      return {
+        text: message?.content || '',
+        toolCalls: (message?.tool_calls || []).map((tc: { function: { name: string; arguments: string } }) => ({
+          name: tc.function.name,
+          args: JSON.parse(tc.function.arguments || '{}'),
+        })),
+      };
+    }
+
+    const errText = await resp.text();
+    const isModelUnavailable =
+      resp.status === 404 ||
+      (resp.status === 400 && /model.*(not exist|not found|access|deprecated|decommissioned)/i.test(errText));
+
+    if (isModelUnavailable) {
+      console.warn(`[SEOS Groq] Model ${model} unavailable (${resp.status}), trying next candidate...`);
+      retiredGroqModels.add(model);
+      continue;
+    }
+
+    throw new LLMError(`Groq API error ${resp.status}: ${errorMessage(errText)}`);
+  }
+
+  throw new LLMError(`None of the Groq models available to this key worked (tried: ${[...tried].join(', ')}).`);
+}
+
+// ─── NVIDIA NIM ───
+
+const NVIDIA_BASE = 'https://integrate.api.nvidia.com/v1';
+
+let nvidiaModel: { key: string; model: string } | null = null;
+const retiredNvidiaModels = new Set<string>();
+
+async function completeNvidia(apiKey: string, opts: CompleteOptions): Promise<Completion> {
+  const candidateModels = [
+    ...(nvidiaModel?.key === apiKey ? [nvidiaModel.model] : []),
+    'meta/llama-3.2-11b-vision-instruct',
+    'mistralai/mistral-large-2-instruct',
+    'nvidia/llama-3.1-nemotron-70b-instruct',
+    'mistralai/codestral-22b-instruct-v0.1',
+    'openai/gpt-oss-20b',
+  ];
+  const tried = new Set<string>();
+
+  while (candidateModels.length > 0) {
+    const model = candidateModels.shift()!;
+    if (tried.has(model) || retiredNvidiaModels.has(model)) continue;
+    tried.add(model);
+
+    const body: Record<string, unknown> = {
+      model,
+      messages: [{ role: 'system', content: opts.system }, ...opts.messages],
+      temperature: opts.temperature ?? 0.7,
+      max_tokens: opts.maxTokens ?? 8192,
+    };
+    if (opts.tools?.length) {
+      body.tools = opts.tools.map((t) => ({ type: 'function', function: t }));
+      body.tool_choice = 'auto';
+    }
+    if (opts.json) body.response_format = { type: 'json_object' };
+
+    let resp: Response;
+    try {
+      resp = await fetch('/api/nvidia/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok && resp.status !== 404 && resp.status !== 400) {
+        resp = await fetch(`${NVIDIA_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+      }
+    } catch {
+      try {
+        resp = await fetch(`${NVIDIA_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+      } catch (netErr: any) {
+        throw new LLMError(`Failed to connect to NVIDIA NIM: ${netErr.message || 'Network error'}`);
+      }
+    }
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const active = data.model || model;
+      nvidiaModel = { key: apiKey, model: active };
+      useStore.getState().setActiveModel(active);
+      const message = data.choices?.[0]?.message;
+      return {
+        text: message?.content || '',
+        toolCalls: (message?.tool_calls || []).map((tc: { function: { name: string; arguments: string } }) => ({
+          name: tc.function.name,
+          args: JSON.parse(tc.function.arguments || '{}'),
+        })),
+      };
+    }
+
+    const errText = await resp.text();
+    if (/not found for account/i.test(errText)) {
+      throw new LLMError(
+        `NVIDIA NIM Account Notice: This API key is valid, but your NVIDIA account lacks the "Public API Endpoints" entitlement. Go to build.nvidia.com or email help@build.nvidia.com to enable public model invocation.`
+      );
+    }
+
+    if (resp.status === 404 || resp.status === 410) {
+      retiredNvidiaModels.add(model);
+      continue;
+    }
+
+    throw new LLMError(`NVIDIA NIM API error ${resp.status}: ${errorMessage(errText)}`);
+  }
+
+  throw new LLMError(`None of the NVIDIA NIM models responded (tried: ${[...tried].join(', ')}).`);
 }

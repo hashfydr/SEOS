@@ -1,0 +1,130 @@
+<mxfile host="app.diagrams.net" agent="SEOS Agent">
+  <diagram id="SEOS_DFD_Level_0_Clean" name="DFD Level 0 (Context Diagram)">
+    <mxGraphModel dx="1400" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="800" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ================= EXTERNAL ENTITIES ================= -->
+        <!-- Student (Left Top) -->
+        <mxCell id="ent_student" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;spacing=6;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.5;" value="Student / Learner" vertex="1">
+          <mxGeometry x="80" y="140" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Mentor (Left Bottom) -->
+        <mxCell id="ent_mentor" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;spacing=6;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.5;" value="Mentor / Faculty" vertex="1">
+          <mxGeometry x="80" y="510" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- External LLM Provider (Right Top) -->
+        <mxCell id="ent_llm" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;spacing=6;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.5;" value="External LLM Provider&#xa;(Gemini / OpenAI API)" vertex="1">
+          <mxGeometry x="980" y="140" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- SE Literature Repository (Right Bottom) -->
+        <mxCell id="ent_lit" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;spacing=6;fillColor=#ffffff;strokeColor=#000000;strokeWidth=1.5;" value="SE Literature Repository&#xa;(Classical Books &amp; Chunks)" vertex="1">
+          <mxGeometry x="980" y="510" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ================= CENTRAL SYSTEM PROCESS 0.0 ================= -->
+        <mxCell id="proc_seos" parent="1" style="ellipse;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;fillColor=#ffffff;strokeColor=#000000;strokeWidth=2;" value="0.0&#xa;Software Engineering&#xa;Operating System&#xa;(SEOS)" vertex="1">
+          <mxGeometry x="490" y="270" width="260" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ================= DATA FLOW CONNECTIONS ================= -->
+
+        <!-- 1. Student -> SEOS: Upstream Generation Input -->
+        <mxCell id="flow_s1" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0.03;entryY=0.28;entryDx=0;entryDy=0;entryPerimeter=0;" source="ent_student" target="proc_seos" value="Product Idea, Constraints &amp; Model Edits">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="163" />
+              <mxPoint x="380" y="326" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. Student -> SEOS: Refinements & Sync Commands -->
+        <mxCell id="flow_s2" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0.01;entryY=0.45;entryDx=0;entryDy=0;entryPerimeter=0;" source="ent_student" target="proc_seos" value="Requirement Approvals &amp; OpenAPI Reverse-Sync">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="350" y="208" />
+              <mxPoint x="350" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 3. SEOS -> Student: Generated Specifications & Code -->
+        <mxCell id="flow_s3" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=0.08;exitY=0.68;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.85;entryY=1;entryDx=0;entryDy=0;" source="proc_seos" target="ent_student" value="Requirements (FR/NFR), Stories &amp; OpenAPI 3.1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320" y="406" />
+              <mxPoint x="320" y="250" />
+              <mxPoint x="233" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. SEOS -> Student: Models, Docs & Mastery Analytics -->
+        <mxCell id="flow_s4" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=0.03;entryX=0.4;entryY=1;exitY=0.55;exitDx=0;exitDy=0;exitPerimeter=0;" source="proc_seos" target="ent_student" value="UML Models, IEEE 830 Docs &amp; Learning Progress">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="380" />
+              <mxPoint x="290" y="270" />
+              <mxPoint x="152" y="270" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 5. Mentor -> SEOS: Audit Requests -->
+        <mxCell id="flow_m1" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.15;entryY=0.85;entryDx=0;entryDy=0;entryPerimeter=0;" source="ent_mentor" target="proc_seos" value="Audit Requests &amp; Evaluation Queries">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="537" />
+              <mxPoint x="360" y="440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 6. SEOS -> Mentor: Compliance, Artifacts & Metrics -->
+        <mxCell id="flow_m2" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=0.25;exitY=0.95;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" source="proc_seos" target="ent_mentor" value="Artifacts, Traceability Matrix &amp; Grades">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="555" y="578" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. SEOS -> LLM: Generation & Repair Prompts -->
+        <mxCell id="flow_l1" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=0.97;exitY=0.28;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" source="proc_seos" target="ent_llm" value="Grounded Prompts &amp; Context">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="860" y="326" />
+              <mxPoint x="860" y="167" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. LLM -> SEOS: Structured Artifact Outputs -->
+        <mxCell id="flow_l2" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0.99;entryY=0.45;entryDx=0;entryDy=0;entryPerimeter=0;" source="ent_llm" target="proc_seos" value="Synthesized JSON &amp; YAML Drafts">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="890" y="208" />
+              <mxPoint x="890" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. Literature -> SEOS: Domain Knowledge Embeddings -->
+        <mxCell id="flow_lit1" parent="1" edge="1" style="endArrow=classic;html=1;strokeWidth=1.5;strokeColor=#000000;fontSize=11;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.85;entryY=0.85;entryDx=0;entryDy=0;entryPerimeter=0;" source="ent_lit" target="proc_seos" value="Classical SE Principles &amp; Citations">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="860" y="555" />
+              <mxPoint x="860" y="440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

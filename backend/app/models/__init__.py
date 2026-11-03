@@ -1,0 +1,33 @@
+from app.models.models import (
+    User,
+    Classroom,
+    Enrollment,
+    Project,
+    Requirement,
+    UserStory,
+    Diagram,
+    Architecture,
+    ApiSpec,
+    Document,
+    PromptVersion,
+    KnowledgeChunk,
+    RagExplanation,
+    TraceLink,
+)
+
+__all__ = [
+    "User",
+    "Classroom",
+    "Enrollment",
+    "Project",
+    "Requirement",
+    "UserStory",
+    "Diagram",
+    "Architecture",
+    "ApiSpec",
+    "Document",
+    "PromptVersion",
+    "KnowledgeChunk",
+    "RagExplanation",
+    "TraceLink",
+]

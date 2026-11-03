@@ -1,0 +1,202 @@
+<mxfile host="app.diagrams.net" agent="SEOS Agent">
+  <diagram id="Simple_Human_Sequence" name="Sequence Diagram">
+    <mxGraphModel dx="1376" dy="603" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="900" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="l1" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="65" y="99.99999999999989" as="sourcePoint" />
+            <mxPoint x="65" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Requirements UI" vertex="1">
+          <mxGeometry height="40" width="100" x="150" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" edge="1" parent="1" source="s2" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="200" y="90" as="sourcePoint" />
+            <mxPoint x="200" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="RequirementsRouter" vertex="1">
+          <mxGeometry height="40" width="120" x="290" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" edge="1" parent="1" source="s3" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="350" y="90" as="sourcePoint" />
+            <mxPoint x="350" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Auth Guard" vertex="1">
+          <mxGeometry height="40" width="90" x="440" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" edge="1" parent="1" source="s4" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="485" y="90" as="sourcePoint" />
+            <mxPoint x="485" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="RequirementsService" vertex="1">
+          <mxGeometry height="40" width="130" x="560" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" edge="1" parent="1" source="s5" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="625" y="90" as="sourcePoint" />
+            <mxPoint x="625" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="LLM Gateway" vertex="1">
+          <mxGeometry height="40" width="100" x="720" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l6" edge="1" parent="1" source="s6" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="770" y="90" as="sourcePoint" />
+            <mxPoint x="770" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Schema Validator" vertex="1">
+          <mxGeometry height="40" width="110" x="850" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l7" edge="1" parent="1" source="s7" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="905" y="90" as="sourcePoint" />
+            <mxPoint x="905" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="s8" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;" value="PostgreSQL" vertex="1">
+          <mxGeometry height="70" width="80" x="990" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="l8" edge="1" parent="1" source="s8" style="endArrow=none;dashed=1;html=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1030" y="90" as="sourcePoint" />
+            <mxPoint x="1030" y="850" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg1" edge="1" parent="1" style="endArrow=classic;html=1;" value="enter idea text">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="65" y="130" as="sourcePoint" />
+            <mxPoint x="200" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg2" edge="1" parent="1" style="endArrow=classic;html=1;" value="POST /projects/{id}/requirements/generate">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="160" as="sourcePoint" />
+            <mxPoint x="350" y="160" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg3" edge="1" parent="1" style="endArrow=classic;html=1;" value="verify bearer token">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="190" as="sourcePoint" />
+            <mxPoint x="485" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg4" edge="1" parent="1" style="endArrow=classic;html=1;" value="generate project_id, idea)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="220" as="sourcePoint" />
+            <mxPoint x="625" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg5" edge="1" parent="1" style="endArrow=classic;html=1;" value="load project context">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="625" y="250" as="sourcePoint" />
+            <mxPoint x="1030" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg5_r" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="project data">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="280" as="sourcePoint" />
+            <mxPoint x="625" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg6" edge="1" parent="1" style="endArrow=classic;html=1;" value="requirements prompt&amp;nbsp;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="625" y="310" as="sourcePoint" />
+            <mxPoint x="770" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg6_r" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="JSON draft">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="770" y="340" as="sourcePoint" />
+            <mxPoint x="625" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg7" edge="1" parent="1" style="endArrow=classic;html=1;" value="validate(RequirementSet)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="625" y="370" as="sourcePoint" />
+            <mxPoint x="905" y="370" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="alt1" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;width=180;height=30;" value="alt [Invalid or ambiguous]" vertex="1">
+          <mxGeometry height="110" width="840" x="120" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="alt_m1" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="ValidationError">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="905" y="435" as="sourcePoint" />
+            <mxPoint x="625" y="435" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="alt_m2" edge="1" parent="1" style="endArrow=classic;html=1;" value="repair prompt (max 2 retries)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="625" y="465" as="sourcePoint" />
+            <mxPoint x="770" y="465" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="alt_div" parent="1" style="line;strokeWidth=1;dashed=1;labelPosition=center;verticalLabelPosition=top;align=left;verticalAlign=bottom;spacingLeft=15;" value="[valid]" vertex="1">
+          <mxGeometry height="10" width="840" x="120" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_valid" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="RequirementSet">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="905" y="535" as="sourcePoint" />
+            <mxPoint x="625" y="535" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p_m1" edge="1" parent="1" style="endArrow=classic;html=1;" value="BEGIN / INSERT requirements / COMMIT">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="625" y="580" as="sourcePoint" />
+            <mxPoint x="1030" y="580" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p_m2" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="Created">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="610" as="sourcePoint" />
+            <mxPoint x="200" y="610" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p_m3" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="show REQ cards">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="640" as="sourcePoint" />
+            <mxPoint x="65" y="640" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ap_m1" edge="1" parent="1" style="endArrow=classic;html=1;" value="approve all and generate stories">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="65" y="700" as="sourcePoint" />
+            <mxPoint x="200" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ap_m2" edge="1" parent="1" style="endArrow=classic;html=1;" value="PATCH /requirements/approve">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="730" as="sourcePoint" />
+            <mxPoint x="350" y="730" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ap_m3" edge="1" parent="1" style="endArrow=classic;html=1;" value="UPDATE status=approved">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="760" as="sourcePoint" />
+            <mxPoint x="1030" y="760" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ap_m4" edge="1" parent="1" style="endArrow=open;dashed=1;html=1;" value="final&amp;nbsp;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="790" as="sourcePoint" />
+            <mxPoint x="200" y="790" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="I1RQfPozykzKivXlGFjP-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="STUDENT" vertex="1">
+          <mxGeometry height="40" width="110" x="10" y="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

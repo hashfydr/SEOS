@@ -55,6 +55,17 @@ export default function SystemModeling() {
   const saveState = useCallback((newNodes: UMLNode[], newEdges: any[]) => {
     setNodes(newNodes);
     setEdges(newEdges);
+    // Sync to global Zustand store so changes persist across views and page reloads
+    useStore.getState().setUMLNodes(newNodes);
+    useStore.getState().setUMLEdges(newEdges);
+    // Mark downstream artifacts as stale if they have already been generated
+    const state = useStore.getState();
+    if (state.openapiYaml || state.docs.length > 0) {
+      state.setStaleArtifacts({
+        api: !!state.openapiYaml,
+        docs: state.docs.length > 0,
+      });
+    }
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
       newHistory.push({ nodes: newNodes, edges: newEdges });
@@ -68,6 +79,8 @@ export default function SystemModeling() {
       const prevState = history[historyIndex - 1];
       setNodes(prevState.nodes);
       setEdges(prevState.edges);
+      useStore.getState().setUMLNodes(prevState.nodes);
+      useStore.getState().setUMLEdges(prevState.edges);
       setHistoryIndex(prev => prev - 1);
       showSyncToast('Undo');
     }
@@ -78,6 +91,8 @@ export default function SystemModeling() {
       const nextState = history[historyIndex + 1];
       setNodes(nextState.nodes);
       setEdges(nextState.edges);
+      useStore.getState().setUMLNodes(nextState.nodes);
+      useStore.getState().setUMLEdges(nextState.edges);
       setHistoryIndex(prev => prev + 1);
       showSyncToast('Redo');
     }
@@ -231,10 +246,10 @@ export default function SystemModeling() {
 
   const getHeaderColor = (type: string) => {
     switch (type) {
-      case 'entity': return 'bg-indigo-600';
-      case 'actor': return 'bg-emerald-600';
+      case 'entity': return 'bg-seos-accent';
+      case 'actor': return 'bg-seos-green';
       case 'service': return 'bg-cyan-600';
-      default: return 'bg-indigo-600';
+      default: return 'bg-seos-accent';
     }
   };
 
@@ -268,7 +283,7 @@ export default function SystemModeling() {
                   key={edge.id}
                   d={pathData}
                   fill="none"
-                  stroke="var(--seos-border-2, #4b5563)"
+                  stroke="var(--app-border-2)"
                   strokeWidth="3"
                   markerEnd="url(#arrowhead)"
                   className="opacity-60 transition-all duration-200 hover:stroke-seos-red hover:opacity-100 cursor-pointer"
@@ -282,7 +297,7 @@ export default function SystemModeling() {
             })}
             <defs>
               <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="var(--seos-border-2, #4b5563)" />
+                <polygon points="0 0, 10 3.5, 0 7" fill="var(--app-border-2)" />
               </marker>
             </defs>
           </svg>
@@ -383,8 +398,8 @@ export default function SystemModeling() {
           1:1
         </button>
         <div className="w-px h-6 bg-seos-border-2 mx-1"></div>
-        <button onClick={() => setIsLocked(!isLocked)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isLocked ? 'bg-seos-accent/20 text-seos-accent' : 'hover:bg-seos-surface-3 text-seos-text'}`} title="Toggle Lock">
-          {isLocked ? '🔒' : '🔓'}
+        <button onClick={() => setIsLocked(!isLocked)} className={`px-2.5 h-8 rounded font-mono text-xs font-bold transition-colors ${isLocked ? 'bg-seos-accent/20 text-seos-accent border border-seos-accent/40' : 'hover:bg-seos-surface-3 text-seos-text border border-seos-border'}`} title="Toggle Lock">
+          {isLocked ? '[LOCKED]' : '[FREE]'}
         </button>
         <div className="w-px h-6 bg-seos-border-2 mx-1"></div>
         <div className="relative group flex items-center justify-center w-10 h-10">
@@ -419,14 +434,20 @@ export default function SystemModeling() {
             closeContextMenu();
           }}>Change Type/Color</button>
           <div className="h-px bg-seos-border my-1"></div>
-          <button className="px-4 py-2 text-left hover:bg-red-500/20 text-red-400 w-full transition-colors" onClick={() => { deleteNode(contextMenu.nodeId!); closeContextMenu(); }}>Delete</button>
+          <button className="px-4 py-2 text-left hover:bg-red-500/20 text-seos-red w-full transition-colors" onClick={() => { deleteNode(contextMenu.nodeId!); closeContextMenu(); }}>Delete</button>
         </div>
       )}
 
       {/* Edit Fields Modal */}
       {editingFieldsNode && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-seos-surface border border-seos-border rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-[80vh]">
+        <div
+          onClick={() => setEditingFieldsNode(null)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-seos-surface border border-seos-border rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden max-h-[80vh] cursor-default"
+          >
             <div className="px-5 py-4 border-b border-seos-border-2 flex justify-between items-center bg-seos-surface-2/50">
               <h2 className="text-lg font-semibold text-seos-text">Edit Fields - {editingFieldsNode.name}</h2>
               <button onClick={() => setEditingFieldsNode(null)} className="text-seos-text-3 hover:text-seos-text transition-colors">✕</button>
@@ -476,7 +497,7 @@ export default function SystemModeling() {
                       const newFields = editingFieldsNode.fields.filter((_, i) => i !== idx);
                       setEditingFieldsNode({ ...editingFieldsNode, fields: newFields });
                     }}
-                    className="text-red-400 hover:text-red-300 ml-1 p-1"
+                    className="text-seos-red hover:text-red-300 ml-1 p-1"
                   >✕</button>
                 </div>
               ))}
@@ -516,7 +537,7 @@ export default function SystemModeling() {
                         const newMethods = (editingFieldsNode.methods || []).filter((_, i) => i !== idx);
                         setEditingFieldsNode({ ...editingFieldsNode, methods: newMethods });
                       }}
-                      className="text-red-400 hover:text-red-300 ml-1 p-1"
+                      className="text-seos-red hover:text-red-300 ml-1 p-1"
                     >✕</button>
                   </div>
                 ))}

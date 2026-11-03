@@ -1,48 +1,52 @@
 @import "tailwindcss";
 
+/* ─── Earth palette: weathered stone, clay, moss, ochre ─── */
 :root {
-  /* Light mode (slate/blue) */
-  --app-bg: #f8fafc;
-  --app-surface: #ffffff;
-  --app-surface-2: #f1f5f9;
-  --app-surface-3: #e2e8f0;
-  --app-border: #e2e8f0;
-  --app-border-2: #cbd5e1;
-  --app-accent: #3b82f6;
-  --app-accent-2: #60a5fa;
-  --app-accent-glow: rgba(59, 130, 246, 0.25);
-  --app-green: #10b981;
-  --app-green-glow: rgba(16, 185, 129, 0.25);
-  --app-amber: #f59e0b;
-  --app-red: #ef4444;
-  --app-cyan: #06b6d4;
-  --app-text: #0f172a;
-  --app-text-2: #475569;
-  --app-text-3: #64748b;
+  /* Light mode — limestone & sandstone */
+  --app-bg: #f3eee4;
+  --app-surface: #fbf8f2;
+  --app-surface-2: #ece5d8;
+  --app-surface-3: #e0d6c4;
+  --app-border: #e2d8c6;
+  --app-border-2: #cfc1a9;
+  --app-accent: #a4502b;        /* terracotta */
+  --app-accent-2: #bd6a40;
+  --app-accent-glow: rgba(164, 80, 43, 0.18);
+  --app-green: #5f7536;         /* moss */
+  --app-green-glow: rgba(95, 117, 54, 0.2);
+  --app-amber: #b07f2a;         /* ochre */
+  --app-red: #9e3b2c;           /* rust */
+  --app-cyan: #47706f;          /* slate-teal */
+  --app-text: #2a231c;
+  --app-text-2: #5b4f43;
+  --app-text-3: #85776a;
 }
 
 .dark {
-  /* Dark mode (bluish dark) */
-  --app-bg: #0b1121;
-  --app-surface: #151e32;
-  --app-surface-2: #1e293b;
-  --app-surface-3: #334155;
-  --app-border: #1e293b;
-  --app-border-2: #334155;
-  --app-accent: #6366f1;
-  --app-accent-2: #818cf8;
-  --app-accent-glow: rgba(99, 102, 241, 0.35);
-  --app-green: #10b981;
-  --app-green-glow: rgba(16, 185, 129, 0.35);
-  --app-amber: #f59e0b;
-  --app-red: #ef4444;
-  --app-cyan: #06b6d4;
-  --app-text: #f8fafc;
-  --app-text-2: #cbd5e1;
-  --app-text-3: #94a3b8;
+  /* Dark mode — basalt & shale */
+  --app-bg: #161310;
+  --app-surface: #1e1a16;
+  --app-surface-2: #29231e;
+  --app-surface-3: #383029;
+  --app-border: #2c2620;
+  --app-border-2: #40372f;
+  --app-accent: #c8714a;
+  --app-accent-2: #dc8c63;
+  --app-accent-glow: rgba(200, 113, 74, 0.25);
+  --app-green: #93a463;
+  --app-green-glow: rgba(147, 164, 99, 0.25);
+  --app-amber: #d3a250;
+  --app-red: #c95c47;
+  --app-cyan: #82aaa6;
+  --app-text: #efe7da;
+  --app-text-2: #c7b9a6;
+  --app-text-3: #978876;
 }
 
 @theme {
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
   --color-seos-bg: var(--app-bg);
   --color-seos-primary: var(--app-accent);
   --color-seos-surface: var(--app-surface);
@@ -61,22 +65,37 @@
   --color-seos-text: var(--app-text);
   --color-seos-text-2: var(--app-text-2);
   --color-seos-text-3: var(--app-text-3);
+
+  /* Aliases for token names used across views */
+  --color-seos-background: var(--app-bg);
+  --color-seos-panel: var(--app-surface);
+  --color-seos-surface-1: var(--app-surface);
+  --color-seos-surface-hover: var(--app-surface-2);
+  --color-seos-hover: var(--app-surface-2);
+  --color-seos-accent-hover: var(--app-accent-2);
+  --color-seos-text-primary: var(--app-text);
+  --color-seos-text-secondary: var(--app-text-2);
+  --color-seos-text-muted: var(--app-text-3);
+
+  /* Home page — fixed rock palette (independent of app theme) */
+  --color-rock-basalt: #1b1714;
+  --color-rock-shale: #2a2420;
+  --color-rock-granite: #4a4038;
+  --color-rock-flint: #6f6357;
+  --color-rock-sandstone: #d8c3a0;
+  --color-rock-limestone: #efe7d8;
+  --color-rock-chalk: #f8f3ea;
+  --color-rock-clay: #a4502b;
+  --color-rock-ember: #c8714a;
+  --color-rock-ochre: #c08a35;
+  --color-rock-moss: #5f7536;
+  --color-rock-lichen: #9aa86a;
+  --color-rock-slate: #47706f;
 }
 
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* Base styles live in the base layer so Tailwind utilities (p-6, mb-8…) can override them.
+   Tailwind's preflight already resets margin/padding/box-sizing. */
+@layer base {
 html, body, #root {
   height: 100%;
   width: 100%;
@@ -86,6 +105,7 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   background: var(--color-seos-bg);
   color: var(--color-seos-text);
+}
 }
 
 /* Scrollbar styling */
@@ -118,8 +138,8 @@ html, body, #root {
   to { opacity: 1; transform: translateX(0); }
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px var(--color-seos-accent-glow); }
-  50% { box-shadow: 0 0 20px var(--color-seos-accent-glow), 0 0 40px var(--color-seos-accent-glow); }
+  0%, 100% { box-shadow: 0 0 6px var(--color-seos-accent-glow); }
+  50% { box-shadow: 0 0 14px var(--color-seos-accent-glow); }
 }
 @keyframes shimmer {
   0% { background-position: -200% 0; }
@@ -149,7 +169,7 @@ html, body, #root {
 
 /* Glass effect */
 .glass {
-  background: rgba(17, 24, 39, 0.7);
+  background: color-mix(in srgb, var(--app-surface) 75%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-seos-border);
@@ -160,4 +180,20 @@ html, body, #root {
   background-image:
     radial-gradient(circle, var(--color-seos-border) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+/* ─── Home page textures ─── */
+.rock-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.2 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.rock-grain-dark {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.9 0 0 0 0 0.82 0 0 0 0 0.7 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-rise { animation: rise 0.7s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise, .animate-fade-in { animation: none; }
 }

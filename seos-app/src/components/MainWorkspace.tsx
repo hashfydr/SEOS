@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { ViewId } from '../types';
 
+import Home from '../views/Home';
 const ProjectOverview = lazy(() => import('../views/ProjectOverview'));
 const IdeaInput = lazy(() => import('../views/IdeaInput'));
 const UserStories = lazy(() => import('../views/UserStories'));
@@ -9,6 +10,8 @@ const Architecture = lazy(() => import('../views/Architecture'));
 const APIDesigner = lazy(() => import('../views/APIDesigner'));
 const Documentation = lazy(() => import('../views/Documentation'));
 const LearningDashboard = lazy(() => import('../views/LearningDashboard'));
+const MentorRoster = lazy(() => import('../views/MentorRoster'));
+const Settings = lazy(() => import('../views/Settings'));
 
 interface Props {
   activeView: ViewId;
@@ -27,7 +30,8 @@ function LoadingFallback() {
   );
 }
 
-const VIEW_MAP: Record<ViewId, React.LazyExoticComponent<React.ComponentType>> = {
+const VIEW_MAP: Record<ViewId, React.ComponentType<any>> = {
+  home: Home,
   overview: ProjectOverview,
   requirements: IdeaInput,
   'user-stories': UserStories,
@@ -36,6 +40,8 @@ const VIEW_MAP: Record<ViewId, React.LazyExoticComponent<React.ComponentType>> =
   'api-designer': APIDesigner,
   documentation: Documentation,
   learning: LearningDashboard,
+  'mentor-roster': MentorRoster,
+  settings: Settings,
 };
 
 export default function MainWorkspace({ activeView }: Props) {

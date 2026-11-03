@@ -1,12 +1,16 @@
 
 import { useStore } from '../store';
+import { getArchitectureCitations } from '../lib/knowledgeBase';
 
 const Architecture = () => {
   const MOCK_ARCH_RECOMMENDATION = useStore((s) => s.architecture);
+  const citations = MOCK_ARCH_RECOMMENDATION.citations?.length
+    ? MOCK_ARCH_RECOMMENDATION.citations
+    : getArchitectureCitations(MOCK_ARCH_RECOMMENDATION.pattern);
   return (
-    <div className="animate-fade-in p-6 bg-seos-bg text-seos-text min-h-screen">
+    <div className="animate-fade-in p-6 lg:px-10 lg:py-8 bg-seos-bg text-seos-text h-full overflow-y-auto pb-24 font-sans">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Architecture Recommendation</h1>
+        <h1 className="font-display text-3xl font-medium tracking-tight">Architecture Recommendation</h1>
         <span className="px-3 py-1 bg-seos-accent/20 text-seos-accent rounded-full text-sm font-semibold border border-seos-accent/30">
           AI-Generated · Grounded via RAG
         </span>
@@ -19,6 +23,39 @@ const Architecture = () => {
         <p className="text-seos-text-2 leading-relaxed">
           {MOCK_ARCH_RECOMMENDATION.rationale || 'This pattern is recommended because it provides scalability and resilience for independent services.'}
         </p>
+
+        {/* RAG Grounded Literature References */}
+        {citations && citations.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-seos-border/50">
+            <h4 className="text-xs uppercase tracking-wider font-semibold text-seos-accent mb-3 flex items-center gap-1.5 font-mono">
+              <span className="font-bold">[REF]</span> Grounded Literature References (RAG)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {citations.map((c, i) => (
+                <a
+                  key={i}
+                  href={c.url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3.5 rounded-lg bg-seos-surface-2/60 border border-seos-border hover:border-seos-accent/40 transition-all flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="text-xs font-semibold text-seos-text group-hover:text-seos-accent transition-colors flex items-center gap-1.5">
+                      <span className="text-seos-accent">[{i + 1}]</span>
+                      <span>{c.title || c.source}</span>
+                    </div>
+                    {c.source && <div className="text-[11px] text-seos-text-3 mt-1">{c.source}</div>}
+                  </div>
+                  {c.page && (
+                    <div className="mt-2 text-[10px] text-seos-accent/80 font-mono">
+                      {c.page}
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mb-10">
@@ -84,7 +121,7 @@ const Architecture = () => {
         <h3 className="text-xl font-bold mb-4">Architecture Diagram</h3>
         <div className="bg-seos-surface p-8 rounded-xl border border-seos-surface-2 shadow-lg flex flex-col items-center gap-4">
           
-          <div className="w-full max-w-md bg-teal-500/20 border border-teal-500/50 text-teal-400 p-4 rounded text-center font-bold">
+          <div className="w-full max-w-md bg-seos-cyan/20 border border-seos-cyan/50 text-seos-cyan p-4 rounded text-center font-bold">
             Client Apps
           </div>
           
@@ -92,7 +129,7 @@ const Architecture = () => {
             <svg className="w-6 h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
           </div>
 
-          <div className="w-full max-w-md bg-indigo-500/20 border border-indigo-500/50 text-indigo-400 p-4 rounded text-center font-bold">
+          <div className="w-full max-w-md bg-seos-accent/20 border border-seos-accent/50 text-seos-accent p-4 rounded text-center font-bold">
             API Gateway
           </div>
 
@@ -101,7 +138,7 @@ const Architecture = () => {
           </div>
 
           <div className="w-full max-w-md flex gap-4">
-            <div className="flex-1 bg-purple-500/20 border border-purple-500/50 text-purple-400 p-4 rounded text-center font-bold text-sm">
+            <div className="flex-1 bg-seos-amber/20 border border-seos-amber/50 text-seos-amber p-4 rounded text-center font-bold text-sm">
               Microservices
             </div>
           </div>

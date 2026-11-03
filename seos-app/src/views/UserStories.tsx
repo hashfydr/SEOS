@@ -11,7 +11,7 @@ function UserStories() {
   return (
     <div className="flex flex-col h-full bg-seos-bg text-seos-text p-6 overflow-y-auto">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-seos-text">User Stories Board</h1>
+        <h1 className="font-display text-3xl font-medium tracking-tight text-seos-text">User Stories Board</h1>
         <div className="bg-seos-surface-3 px-3 py-1 rounded-full text-seos-text-2 font-medium">
           {stories.length} Stories
         </div>

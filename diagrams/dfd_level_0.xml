@@ -1,0 +1,103 @@
+<mxfile host="app.diagrams.net" modified="2026-10-30T05:15:00.000Z" agent="SEOS" version="24.0.0" type="device">
+  <diagram id="seos-dfd-l0" name="DFD Level 0 - Context Diagram">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- External Entities -->
+        <mxCell id="ent_student" value="&lt;b&gt;Student / Learner&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="240" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ent_mentor" value="&lt;b&gt;Mentor / Faculty&lt;/b&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="480" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ent_llm" value="&lt;b&gt;External LLM Provider&lt;/b&gt;&lt;br&gt;(Gemini / OpenAI API)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="920" y="240" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ent_lit" value="&lt;b&gt;SE Literature Repository&lt;/b&gt;&lt;br&gt;(Classical Textbooks)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="920" y="480" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Central Process 0.0 -->
+        <mxCell id="proc_seos" value="&lt;b&gt;0.0&lt;br&gt;Software Engineering&lt;br&gt;Operating System&lt;br&gt;(SEOS)&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=3;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="460" y="310" width="240" height="190" as="geometry" />
+        </mxCell>
+
+        <!-- Flows: Student -> SEOS -->
+        <mxCell id="f1" value="Product Idea, Requirements, Model Edits" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#0050ef;" edge="1" parent="1" source="ent_student" target="proc_seos">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="340" y="260" />
+              <mxPoint x="340" y="358" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flows: SEOS -> Student -->
+        <mxCell id="f2" value="Requirements, Stories, UML Canvas, OpenAPI Spec, Docs, Learning Mastery" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.65;exitDx=0;exitDy=0;entryX=1;entryY=0.8;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#0050ef;" edge="1" parent="1" source="proc_seos" target="ent_student">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="434" />
+              <mxPoint x="360" y="312" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flows: Mentor -> SEOS -->
+        <mxCell id="f3" value="Audit Requests, Custom Prompts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.15;entryY=0.85;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#0050ef;" edge="1" parent="1" source="ent_mentor" target="proc_seos">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="525" />
+              <mxPoint x="496" y="525" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flows: SEOS -> Mentor -->
+        <mxCell id="f4" value="Artifacts, Trace Matrix, Student Grades" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=0.95;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#0050ef;" edge="1" parent="1" source="proc_seos" target="ent_mentor">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="550" />
+              <mxPoint x="240" y="550" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flows: SEOS -> LLM -->
+        <mxCell id="f5" value="Grounded Prompts &amp; Context" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#d79b00;" edge="1" parent="1" source="proc_seos" target="ent_llm">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="358" />
+              <mxPoint x="800" y="263" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flows: LLM -> SEOS -->
+        <mxCell id="f6" value="Synthesized JSON / YAML Drafts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.65;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#d79b00;" edge="1" parent="1" source="ent_llm" target="proc_seos">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="308" />
+              <mxPoint x="820" y="434" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Flows: LIT -> SEOS -->
+        <mxCell id="f7" value="Classical SE Chunks &amp; Book Excerpts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.9;entryY=0.8;entryDx=0;entryDy=0;strokeWidth=1.5;strokeColor=#b85450;" edge="1" parent="1" source="ent_lit" target="proc_seos">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="525" />
+              <mxPoint x="676" y="525" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
