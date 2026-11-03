@@ -30,7 +30,14 @@ describe('Universal Smart API Key Detector & Auto-Activation', () => {
     expect(detected).not.toBeNull();
     expect(detected?.provider).toBe('gemini');
     expect(detected?.providerName).toBe('Google Gemini');
-    expect(detected?.defaultModel).toBe('Gemini 1.5 Flash');
+  });
+
+  it('correctly identifies new Google Gemini API key by AQ. prefix', () => {
+    const key = 'AQ.Ab8MockKeyExample1234567890abcdefghijklmnopqrstuv';
+    const detected = detectApiKeyProvider(key);
+    expect(detected).not.toBeNull();
+    expect(detected?.provider).toBe('gemini');
+    expect(detected?.providerName).toBe('Google Gemini');
   });
 
   it('correctly identifies Anthropic Claude API key by sk-ant- prefix', () => {

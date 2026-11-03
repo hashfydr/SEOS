@@ -49,13 +49,13 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
     };
   }
 
-  // 4. Google Gemini: standard format begins with "AIzaSy" (39 chars)
-  if (key.startsWith('AIzaSy') || key.startsWith('AIza')) {
+  // 4. Google Gemini: legacy format "AIzaSy" (39 chars) or new format "AQ."
+  if (key.startsWith('AIzaSy') || key.startsWith('AIza') || key.startsWith('AQ.')) {
     return {
       provider: 'gemini',
       providerName: 'Google Gemini',
       defaultModel: 'Gemini 1.5 Flash',
-      formatDescription: 'Google AI Studio / Gemini API Key (AIzaSy*)',
+      formatDescription: 'Google AI Studio / Gemini API Key (AIzaSy* / AQ.*)',
       confidence: 'high',
     };
   }
