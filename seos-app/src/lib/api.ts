@@ -3,7 +3,7 @@
  * Provides typed, authenticated communication with the FastAPI backend.
  */
 
-const API_BASE = '/api/v1';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '') : '') + '/api/v1';
 
 export type UserRole = 'solo_dev' | 'student' | 'mentor';
 
