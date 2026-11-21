@@ -26,6 +26,14 @@ const PROVIDER_INFO: Record<LLMProvider, { name: string; defaultModel: string }>
   nvidia: { name: 'NVIDIA NIM', defaultModel: 'Llama 3.1 70B' },
 };
 
+const TECH_STACK_PRESETS = [
+  'FastAPI + React + PostgreSQL',
+  'TypeScript (NestJS) + React + PostgreSQL',
+  'Go (Gin / Chi) + React + PostgreSQL',
+  'Spring Boot 3 + Next.js + PostgreSQL',
+  'Python (Django) + Vue + PostgreSQL',
+];
+
 function maskKey(key: string): string {
   if (!key) return '';
   if (key.length <= 10) return '••••••••';
@@ -50,6 +58,11 @@ export default function SettingsView() {
   const [isValidating, setIsValidating] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const currentTechStack = settings.project.defaultTechStack || 'FastAPI + React + PostgreSQL';
+  const [customTechStackActive, setCustomTechStackActive] = useState(
+    !TECH_STACK_PRESETS.includes(currentTechStack)
+  );
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -486,6 +499,45 @@ export default function SettingsView() {
                     <option value="monolith">Modular Monolith (Clean Architecture)</option>
                     <option value="blank">Blank Slate (Dynamic Recommendation)</option>
                   </select>
+                </div>
+
+                <div className="pt-2">
+                  <label className="block text-[11px] text-seos-text-2 mb-1">Target Technology Stack</label>
+                  <select
+                    value={TECH_STACK_PRESETS.includes(settings.project.defaultTechStack) ? settings.project.defaultTechStack : 'custom'}
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        setCustomTechStackActive(true);
+                      } else {
+                        setCustomTechStackActive(false);
+                        updateSettings('project', { defaultTechStack: e.target.value });
+                        triggerToast(`Tech stack: ${e.target.value}`);
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text cursor-pointer"
+                  >
+                    {TECH_STACK_PRESETS.map((stack) => (
+                      <option key={stack} value={stack}>
+                        {stack}
+                      </option>
+                    ))}
+                    <option value="custom">Custom Technology Stack...</option>
+                  </select>
+
+                  {(customTechStackActive || !TECH_STACK_PRESETS.includes(settings.project.defaultTechStack)) && (
+                    <div className="mt-2 space-y-1">
+                      <input
+                        type="text"
+                        value={settings.project.defaultTechStack}
+                        onChange={(e) => updateSettings('project', { defaultTechStack: e.target.value })}
+                        placeholder="e.g. Rust (Axum) + Svelte + SurrealDB"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
+                      />
+                      <span className="text-[10px] text-seos-text-3 block">
+                        Guides architecture components, OpenAPI data schemas, and README setup commands.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-seos-border/50">

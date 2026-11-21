@@ -31,6 +31,7 @@ describe('SEOS Settings Center & Governance Architecture', () => {
     // 05. Project
     expect(settings.project.defaultTemplate).toBe('microservices');
     expect(settings.project.defaultLanguage).toBe('TypeScript');
+    expect(settings.project.defaultTechStack).toBe('FastAPI + React + PostgreSQL');
 
     // 06. Traceability
     expect(settings.traceability.enforceInvest).toBe(true);

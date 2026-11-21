@@ -206,10 +206,12 @@ foreign keys match the relationships; 0 to 2 methods per entity; relationships r
 
 async function generateArchitecture() {
   const s = useStore.getState();
+  const techStack = s.settings?.project?.defaultTechStack || 'FastAPI + React + PostgreSQL';
   const out = await askJSON<Partial<ArchRecommendation>>(`${context({ reqs: true, model: true })}
 
 Recommend a software architecture for this system. Ground the choice in the Non-Functional requirements and the expected scale;
 prefer the simplest pattern that satisfies them (a modular monolith is a valid answer).
+Target technology stack preference: "${techStack}". Align component choices and concrete technologies with this stack where appropriate.
 Return JSON:
 {
   "pattern": "e.g. Modular Monolith, Event-Driven Microservices, Serverless, Layered",
@@ -256,10 +258,12 @@ Output ONLY the YAML — no explanation, no code fences.`,
 
 async function generateDocs() {
   const s = useStore.getState();
+  const techStack = s.settings?.project?.defaultTechStack || 'FastAPI + React + PostgreSQL';
   const out = await askJSON<{ srs: string; sdd: string; readme: string }>(
     `${context({ reqs: true, stories: true, model: true, arch: true })}
 
 Write three Markdown documents for this project.
+Target technology stack preference: "${techStack}". Reflect this stack in the SDD components and README setup instructions.
 Return JSON: { "srs": "markdown", "sdd": "markdown", "readme": "markdown" }
 - srs: Software Requirements Specification (IEEE 830 style): Introduction (purpose, scope, definitions), Overall description, Functional requirements (cite REQ ids), Non-functional requirements, Constraints.
 - sdd: Software Design Document: Architecture overview, Components (from the architecture), Data design (from the domain model), API overview, Deployment.
