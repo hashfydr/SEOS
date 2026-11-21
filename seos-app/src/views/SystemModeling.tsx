@@ -479,14 +479,14 @@ export default function SystemModeling() {
                     {['VARCHAR', 'UUID', 'INT', 'FLOAT', 'BOOLEAN', 'TIMESTAMP', 'TEXT', 'ENUM', 'DECIMAL'].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <label className="flex items-center gap-1 text-xs text-seos-text-2 cursor-pointer">
-                    <input type="checkbox" checked={!!field.isPK} onChange={(e) => {
+                    <input type="checkbox" className="accent-seos-accent cursor-pointer" checked={!!field.isPK} onChange={(e) => {
                       const newFields = [...editingFieldsNode.fields];
                       newFields[idx].isPK = e.target.checked;
                       setEditingFieldsNode({ ...editingFieldsNode, fields: newFields });
                     }} /> PK
                   </label>
                   <label className="flex items-center gap-1 text-xs text-seos-text-2 cursor-pointer">
-                    <input type="checkbox" checked={!!field.isFK} onChange={(e) => {
+                    <input type="checkbox" className="accent-seos-accent cursor-pointer" checked={!!field.isFK} onChange={(e) => {
                       const newFields = [...editingFieldsNode.fields];
                       newFields[idx].isFK = e.target.checked;
                       setEditingFieldsNode({ ...editingFieldsNode, fields: newFields });

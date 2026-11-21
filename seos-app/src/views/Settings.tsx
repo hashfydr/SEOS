@@ -294,7 +294,7 @@ export default function SettingsView() {
                         updateSettings('pipeline', { requireHumanReview: e.target.checked });
                         triggerToast(`Human review ${e.target.checked ? 'required' : 'optional'}`);
                       }}
-                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
+                      className="rounded border-seos-border accent-seos-accent focus:ring-0 cursor-pointer"
                     />
                     <span>Require manual approval before advancing between pipeline stages</span>
                   </label>
@@ -436,7 +436,7 @@ export default function SettingsView() {
                         updateSettings('ai', { sessionKeyPersistence: e.target.checked });
                         triggerToast(`Session persistence ${e.target.checked ? 'enabled' : 'disabled'}`);
                       }}
-                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
+                      className="rounded border-seos-border accent-seos-accent focus:ring-0 cursor-pointer"
                     />
                     <span>Keep keys active across tab reloads (stored in temporary sessionStorage; cleared on browser close)</span>
                   </label>
@@ -497,7 +497,7 @@ export default function SettingsView() {
                         updateSettings('sync', { autoSyncEnabled: e.target.checked });
                         triggerToast(`Cloud sync ${e.target.checked ? 'enabled' : 'disabled'}`);
                       }}
-                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
+                      className="rounded border-seos-border accent-seos-accent focus:ring-0 cursor-pointer"
                     />
                     <span>Automatically sync project changes with cloud backend</span>
                   </label>
