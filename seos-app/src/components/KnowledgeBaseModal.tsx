@@ -8,15 +8,15 @@ interface Props {
 }
 
 export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'docs' | 'search' | 'corpus'>('docs');
+  const [activeTab, setActiveTab] = useState<'docs' | 'library'>('docs');
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Search state
+  // Search state for library
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<KnowledgeChunk[]>([]);
+  const [filteredLibrary, setFilteredLibrary] = useState<KnowledgeChunk[]>(SE_KNOWLEDGE_BASE);
 
   // Close on Escape
   useEffect(() => {
@@ -44,10 +44,10 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // Handle live search across local SE corpus + keywords
+  // Live filter library
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setSearchResults(SE_KNOWLEDGE_BASE.slice(0, 4));
+      setFilteredLibrary(SE_KNOWLEDGE_BASE);
       return;
     }
     const q = searchQuery.toLowerCase();
@@ -55,12 +55,12 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
       (c) =>
         c.title.toLowerCase().includes(q) ||
         c.author.toLowerCase().includes(q) ||
+        c.topic.toLowerCase().includes(q) ||
         c.chapter.toLowerCase().includes(q) ||
         c.summary.toLowerCase().includes(q) ||
-        c.keywords.some((k) => k.toLowerCase().includes(q)) ||
         c.principles.some((p) => p.toLowerCase().includes(q))
     );
-    setSearchResults(matches);
+    setFilteredLibrary(matches);
   }, [searchQuery]);
 
   if (!isOpen) return null;
@@ -75,13 +75,13 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
       const res = await api.uploadDocument(file);
       setStatusMsg({
         type: 'ok',
-        text: `Indexed ${res.chunks_count} chunks from ${res.file_name} into RAG vector space!`,
+        text: `[OK] Uploaded and indexed ${res.chunks_count} sections from ${res.file_name}.`,
       });
       await fetchDocs();
     } catch (err: any) {
       setStatusMsg({
         type: 'err',
-        text: err.message || 'Failed to upload and index document.',
+        text: `[ERROR] ${err.message || 'Failed to index file.'}`,
       });
     } finally {
       setIsUploading(false);
@@ -92,95 +92,91 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const handleDelete = async (fileName: string) => {
     try {
       await api.deleteDocument(fileName);
-      setStatusMsg({ type: 'ok', text: `Removed ${fileName} from knowledge index.` });
+      setStatusMsg({ type: 'ok', text: `[REMOVED] ${fileName} removed from active index.` });
       await fetchDocs();
     } catch (err: any) {
-      setStatusMsg({ type: 'err', text: err.message || 'Failed to delete document.' });
+      setStatusMsg({ type: 'err', text: `[ERROR] ${err.message || 'Failed to delete.'}` });
     }
   };
 
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in cursor-pointer font-mono text-xs"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-seos-surface border border-seos-border rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[85vh] cursor-default text-seos-text font-sans"
+        className="bg-seos-surface border border-seos-border rounded-xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[85vh] cursor-default text-seos-text"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-seos-border flex items-center justify-between bg-seos-surface-2/40">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-seos-accent font-bold px-2 py-0.5 rounded bg-seos-accent/15 border border-seos-accent/30">
-              :: RAG &amp; LITERATURE ::
-            </span>
-            <div>
-              <h2 className="font-bold text-base text-seos-text">Knowledge Base &amp; Context Retrieval</h2>
-              <p className="text-[11px] text-seos-text-3 font-mono">
-                Manage uploaded course literature, inspect sliding-window chunks, and query software engineering principles.
-              </p>
+        <div className="px-5 py-3.5 border-b border-seos-border flex items-center justify-between bg-seos-surface-2/40">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-seos-accent font-bold">::</span>
+              <h2 className="font-bold text-xs uppercase tracking-wider text-seos-text">
+                [KNOWLEDGE BASE]
+              </h2>
             </div>
+            <p className="text-[11px] text-seos-text-3 mt-0.5">
+              Reference documents and literature used to ground AI recommendations.
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="text-seos-text-3 hover:text-seos-text font-mono text-sm px-2 py-1 rounded transition-colors cursor-pointer"
+            className="text-seos-text-3 hover:text-seos-text font-mono text-xs px-1.5 py-0.5 rounded transition-colors cursor-pointer"
           >
             [X]
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-seos-border px-6 bg-seos-surface-2/20 font-mono text-xs">
+        <div className="flex border-b border-seos-border px-5 bg-seos-surface-2/20 text-xs">
           <button
             onClick={() => setActiveTab('docs')}
-            className={`py-3 px-4 font-bold border-b-2 transition-all cursor-pointer ${
+            className={`py-2.5 px-4 font-bold border-b-2 transition-colors cursor-pointer ${
               activeTab === 'docs'
                 ? 'border-seos-accent text-seos-accent bg-seos-accent/5'
                 : 'border-transparent text-seos-text-3 hover:text-seos-text'
             }`}
           >
-            [01 / DOCUMENTS ({uploadedDocs.length})]
+            [01] My Documents ({uploadedDocs.length})
           </button>
           <button
-            onClick={() => setActiveTab('search')}
-            className={`py-3 px-4 font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'search'
+            onClick={() => setActiveTab('library')}
+            className={`py-2.5 px-4 font-bold border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'library'
                 ? 'border-seos-accent text-seos-accent bg-seos-accent/5'
                 : 'border-transparent text-seos-text-3 hover:text-seos-text'
             }`}
           >
-            [02 / SEMANTIC QUERY SEARCH]
-          </button>
-          <button
-            onClick={() => setActiveTab('corpus')}
-            className={`py-3 px-4 font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === 'corpus'
-                ? 'border-seos-accent text-seos-accent bg-seos-accent/5'
-                : 'border-transparent text-seos-text-3 hover:text-seos-text'
-            }`}
-          >
-            [03 / SE LITERATURE CORPUS ({SE_KNOWLEDGE_BASE.length})]
+            [02] Engineering Library ({SE_KNOWLEDGE_BASE.length})
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-4">
-          {statusMsg && (
-            <div
-              className={`p-3 rounded-lg text-xs font-mono border ${
-                statusMsg.type === 'ok'
-                  ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
-                  : 'bg-seos-red/15 text-seos-red border-seos-red/30'
-              }`}
-            >
-              {statusMsg.text}
-            </div>
-          )}
+        {/* Status Message */}
+        {statusMsg && (
+          <div
+            className={`mx-5 mt-3 p-2 rounded text-[11px] border ${
+              statusMsg.type === 'ok'
+                ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
+                : 'bg-seos-red/15 text-seos-red border-seos-red/30'
+            }`}
+          >
+            {statusMsg.text}
+          </div>
+        )}
 
-          {/* TAB 1: Uploaded Course Documents */}
+        {/* Content Body */}
+        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          {/* TAB 1: MY DOCUMENTS */}
           {activeTab === 'docs' && (
-            <div className="space-y-4">
-              <div className="p-5 rounded-xl border border-dashed border-seos-accent/40 bg-seos-accent/5 flex flex-col items-center justify-center text-center space-y-2">
+            <div className="space-y-4 animate-fade-in">
+              <div className="p-2.5 rounded bg-seos-surface-2/60 border border-seos-border text-[11px] text-seos-text-2">
+                <strong>What it does:</strong> Upload your own project PRDs, design documents, or technical specs (.pdf, .md, .txt). The AI reads these files as direct context when generating requirements, user stories, and architecture.
+              </div>
+
+              {/* Upload Drop Zone */}
+              <div className="p-5 rounded border border-dashed border-seos-accent/40 bg-seos-accent/5 flex flex-col items-center justify-center text-center space-y-2">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -188,38 +184,38 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   accept=".md,.pdf,.txt,.json,.yaml"
                   className="hidden"
                 />
-                <span className="font-mono text-2xl text-seos-accent">[+]</span>
-                <div className="font-semibold text-sm">Upload Documents &amp; Reference Literature</div>
-                <p className="text-xs text-seos-text-3 max-w-md font-mono">
-                  Supported formats: <strong>.pdf</strong>, <strong>.md</strong>, <strong>.txt</strong>.
-                  Files are automatically chunked into 600-character windows with 100-character overlap for vector search.
+                <span className="text-xl text-seos-accent font-bold">[+]</span>
+                <div className="font-bold text-xs text-seos-text">Upload Custom Project Document</div>
+                <p className="text-[11px] text-seos-text-3 max-w-md">
+                  Supported formats: <strong>.pdf</strong>, <strong>.md</strong>, <strong>.txt</strong>. Files are split into indexed sections for context search.
                 </p>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="mt-2 px-4 py-2 rounded-lg bg-seos-accent hover:bg-seos-accent-2 text-white font-mono text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="mt-1 px-4 py-1.5 rounded bg-seos-accent text-white font-bold text-xs transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
                 >
-                  {isUploading ? 'Chunking & Indexing...' : 'Select File to Ingest'}
+                  {isUploading ? 'INDEXING...' : '[SELECT FILE TO UPLOAD]'}
                 </button>
               </div>
 
-              <div>
-                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-seos-text mb-2">
-                  Active Ingested Documents
-                </h3>
+              {/* Uploaded Documents List */}
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-seos-text-3">
+                  Uploaded Project Files ({uploadedDocs.length})
+                </div>
                 {uploadedDocs.length === 0 ? (
-                  <div className="p-4 rounded-lg bg-seos-surface-2 border border-seos-border text-xs text-seos-text-3 font-mono text-center">
-                    No custom documents indexed yet. Upload architecture specs, PRDs, or textbooks to ground AI generation.
+                  <div className="p-3.5 rounded bg-seos-surface-2 border border-seos-border text-[11px] text-seos-text-3 text-center">
+                    No custom documents uploaded yet. Upload a PRD or architecture note to ground the AI assistant.
                   </div>
                 ) : (
-                  <div className="divide-y divide-seos-border border border-seos-border rounded-xl overflow-hidden bg-seos-surface-2/40">
+                  <div className="divide-y divide-seos-border border border-seos-border rounded overflow-hidden bg-seos-surface-2/40">
                     {uploadedDocs.map((doc, idx) => (
-                      <div key={idx} className="p-3.5 flex items-center justify-between text-xs font-mono">
+                      <div key={idx} className="p-3 flex items-center justify-between text-xs">
                         <div>
                           <div className="font-bold text-seos-text flex items-center gap-2">
                             <span>{doc.file_name}</span>
                             <span className="text-[10px] px-1.5 py-0.2 rounded bg-seos-cyan/15 text-seos-cyan border border-seos-cyan/30">
-                              {doc.chunks_count || '1+'} chunks
+                              {doc.chunks_count || '1'} indexed sections
                             </span>
                           </div>
                           <div className="text-[10px] text-seos-text-3 mt-0.5">
@@ -229,9 +225,9 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                         <button
                           onClick={() => handleDelete(doc.file_name)}
-                          className="px-2.5 py-1 rounded text-[11px] text-seos-red hover:bg-seos-red/10 border border-seos-red/30 cursor-pointer"
+                          className="px-2 py-1 rounded text-[10px] text-seos-red hover:bg-seos-red/10 border border-seos-red/30 cursor-pointer"
                         >
-                          [DELETE]
+                          [REMOVE]
                         </button>
                       </div>
                     ))}
@@ -241,100 +237,56 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* TAB 2: Semantic Query Search */}
-          {activeTab === 'search' && (
-            <div className="space-y-4">
+          {/* TAB 2: ENGINEERING LIBRARY */}
+          {activeTab === 'library' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="p-2.5 rounded bg-seos-surface-2/60 border border-seos-border text-[11px] text-seos-text-2">
+                <strong>What it does:</strong> Pre-loaded seminal software engineering books (Martin Kleppmann, Sam Newman, Martin Fowler, Eric Evans). The AI cites these principles when designing microservices, databases, and APIs.
+              </div>
+
+              {/* Search Box */}
               <div className="relative">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Query knowledge base (e.g. bounded context, microservices, 3NF, Gherkin)..."
-                  className="w-full pl-4 pr-10 py-2.5 text-xs font-mono rounded-xl bg-seos-surface-2 border border-seos-border focus:border-seos-accent outline-none text-seos-text"
+                  placeholder="Filter engineering principles (e.g. microservices, event sourcing, DDD, CQRS)..."
+                  className="w-full px-3 py-2 text-xs rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-2.5 text-xs font-mono text-seos-text-3 hover:text-seos-text"
+                    className="absolute right-3 top-2 text-[10px] text-seos-text-3 hover:text-seos-text cursor-pointer"
                   >
-                    [clear]
+                    [CLEAR]
                   </button>
                 )}
               </div>
 
-              <div className="space-y-3">
-                <div className="text-xs font-mono text-seos-text-3">
-                  Showing {searchResults.length} matching knowledge chunk(s):
-                </div>
-
-                {searchResults.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 rounded-xl bg-seos-surface-2/50 border border-seos-border space-y-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-seos-accent px-1.5 py-0.5 rounded bg-seos-accent/10 border border-seos-accent/30">
-                          {item.id}
-                        </span>
-                        <span className="font-bold text-seos-text">{item.title}</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-seos-green px-1.5 py-0.5 rounded bg-seos-green/10 border border-seos-green/30 font-bold">
-                        [RAG CITATION MATCH]
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] font-mono text-seos-text-2">
-                      by <strong>{item.author}</strong> &bull; {item.chapter} ({item.page})
-                    </div>
-
-                    <p className="text-xs text-seos-text leading-relaxed font-sans bg-seos-bg/60 p-2.5 rounded border border-seos-border/50">
-                      &ldquo;{item.summary}&rdquo;
-                    </p>
-
-                    <div className="space-y-1">
-                      <div className="font-mono text-[10px] text-seos-text-3 uppercase font-bold">Key Architectural Principles:</div>
-                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-seos-text-2">
-                        {item.principles.map((pr, pIdx) => (
-                          <li key={pIdx}>{pr}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: Pre-Indexed Software Engineering Literature */}
-          {activeTab === 'corpus' && (
-            <div className="space-y-4">
-              <div className="p-3 rounded-lg bg-seos-cyan/10 border border-seos-cyan/30 text-xs font-mono text-seos-cyan">
-                [PRE-INDEXED] The following seminal engineering texts are grounded in the SEOS vector space.
-                All chat assistant architecture recommendations cite these references.
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {SE_KNOWLEDGE_BASE.map((chunk) => (
+              {/* Library Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredLibrary.map((chunk) => (
                   <div
                     key={chunk.id}
-                    className="p-4 rounded-xl bg-seos-surface-2/40 border border-seos-border flex flex-col justify-between space-y-3"
+                    className="p-3.5 rounded border border-seos-border bg-seos-surface-2/40 flex flex-col justify-between space-y-2.5"
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-seos-accent/15 text-seos-accent border border-seos-accent/30">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-seos-accent/15 text-seos-accent border border-seos-accent/30">
                           {chunk.topic.toUpperCase()}
                         </span>
-                        <span className="font-mono text-[10px] text-seos-text-3">{chunk.page}</span>
+                        <span className="text-[10px] text-seos-text-3">{chunk.page}</span>
                       </div>
-                      <h4 className="font-bold text-sm text-seos-text">{chunk.title}</h4>
-                      <p className="font-mono text-xs text-seos-text-3 mt-0.5">by {chunk.author}</p>
-                      <p className="text-xs text-seos-text-2 mt-2 leading-relaxed">{chunk.summary}</p>
+                      <h4 className="font-bold text-xs text-seos-text leading-tight">{chunk.title}</h4>
+                      <p className="text-[11px] text-seos-text-3 mt-0.5">by {chunk.author}</p>
+                      <p className="text-[11px] text-seos-text-2 mt-1.5 leading-relaxed bg-seos-bg/50 p-2 rounded border border-seos-border/50">
+                        &ldquo;{chunk.summary}&rdquo;
+                      </p>
                     </div>
 
-                    <div className="pt-2 border-t border-seos-border/50 flex items-center justify-between text-[11px] font-mono text-seos-accent">
-                      <span>{chunk.chapter}</span>
-                      <span>[ACTIVE]</span>
+                    <div className="pt-2 border-t border-seos-border/50 flex items-center justify-between text-[10px] text-seos-text-3">
+                      <span className="truncate">{chunk.chapter}</span>
+                      <span className="text-seos-green shrink-0 ml-1 font-bold">[ACTIVE]</span>
                     </div>
                   </div>
                 ))}
@@ -346,3 +298,5 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
+export default KnowledgeBaseModal;

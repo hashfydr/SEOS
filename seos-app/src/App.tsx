@@ -177,21 +177,9 @@ function Workspace({ activeView, setActiveView }: { activeView: ViewId; setActiv
       <div className="flex-1 flex flex-col min-w-0">
         <div className="h-14 border-b border-seos-border bg-seos-surface flex items-center justify-between gap-4 px-5 shrink-0">
           <nav className="flex items-center gap-2 min-w-0 text-sm font-mono" aria-label="Breadcrumb">
-            <a
-              href="#/"
-              title="Return to Homepage (Bedrock & Strata Cross-Section)"
-              className="flex items-center gap-1.5 px-2 py-1 rounded text-seos-accent hover:bg-seos-surface-2 transition-colors font-bold group shrink-0"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 group-hover:scale-110 transition-transform">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-              <span>[HOME]</span>
-            </a>
-            <span className="text-seos-text-3 font-bold text-xs" aria-hidden="true">::</span>
             <button
               onClick={() => setActiveView('overview')}
-              className="truncate max-w-[32vw] text-seos-text-3 hover:text-seos-text transition-colors font-medium"
+              className="truncate max-w-[32vw] text-seos-text-3 hover:text-seos-text transition-colors font-medium cursor-pointer"
             >
               [{projectName}]
             </button>
@@ -200,18 +188,6 @@ function Workspace({ activeView, setActiveView }: { activeView: ViewId; setActiv
           </nav>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Quick-Return to Bedrock Homepage Button */}
-            <a
-              href="#/"
-              title="Return to Homepage (Bedrock Strata & Overview)"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-mono text-xs font-semibold text-seos-text-2 hover:text-seos-accent bg-seos-surface hover:bg-seos-surface-2 border border-seos-border transition-colors cursor-pointer mr-1"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-              <span className="hidden sm:inline">HOME</span>
-            </a>
 
             {syncState === 'syncing' && (
               <span className="hidden md:inline font-mono text-[11px] text-seos-accent px-2 py-0.5 rounded bg-seos-accent/10 border border-seos-accent/30 animate-pulse font-semibold">
