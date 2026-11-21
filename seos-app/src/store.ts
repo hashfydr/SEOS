@@ -3,7 +3,37 @@ import { persist } from 'zustand/middleware';
 import type { Requirement, UserStory, UMLNode, UMLEdge, AIMessage, DocSection, Citation, SEOSSettingsState } from './types';
 import type { UserProfile } from './lib/api';
 import { setAuthToken } from './lib/api';
-import { detectApiKeyProvider, type DetectedApiKey } from './lib/apiKeyDetector';
+import { detectApiKeyProvider, sanitizeApiKey, type DetectedApiKey } from './lib/apiKeyDetector';
+
+const SESSION_KEYS_STORAGE_KEY = 'seos-session-keys';
+
+function getInitialApiKeys(): APIKeys {
+  const empty: APIKeys = { openai: '', gemini: '', anthropic: '', groq: '', nvidia: '' };
+  if (typeof window === 'undefined' || !window.sessionStorage) return empty;
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEYS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...empty, ...parsed };
+    }
+  } catch {
+    // sessionStorage unavailable
+  }
+  return empty;
+}
+
+function persistApiKeysToSession(keys: APIKeys, enabled: boolean = true) {
+  if (typeof window === 'undefined' || !window.sessionStorage) return;
+  try {
+    if (enabled) {
+      sessionStorage.setItem(SESSION_KEYS_STORAGE_KEY, JSON.stringify(keys));
+    } else {
+      sessionStorage.removeItem(SESSION_KEYS_STORAGE_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 
 // ─────── API Keys & Model ───────
@@ -54,6 +84,7 @@ export const DEFAULT_SETTINGS: SEOSSettingsState = {
     timeoutSeconds: 45,
     retryCount: 2,
     fallbackProvider: 'openai',
+    sessionKeyPersistence: true,
   },
   pipeline: {
     enabledStages: ['requirements', 'stories', 'model', 'architecture', 'api', 'docs'],
@@ -311,7 +342,7 @@ export const useStore = create<SEOSState>()(
       },
 
       // === Settings ===
-      apiKeys: { openai: '', gemini: '', anthropic: '', groq: '', nvidia: '' },
+      apiKeys: getInitialApiKeys(),
       selectedProvider: 'gemini',
       theme: 'dark',
       settings: DEFAULT_SETTINGS,
@@ -327,6 +358,9 @@ export const useStore = create<SEOSState>()(
           }
           if (category === 'ai' && (patch as any).provider) {
             extraPatch.selectedProvider = (patch as any).provider;
+          }
+          if (category === 'ai' && (patch as any).sessionKeyPersistence !== undefined) {
+            persistApiKeysToSession(s.apiKeys, (patch as any).sessionKeyPersistence);
           }
           return { settings: nextSettings, ...extraPatch };
         }),
@@ -371,20 +405,32 @@ export const useStore = create<SEOSState>()(
 
       // === Actions — Settings ===
       setApiKey: (provider, key) =>
-        set((s) => ({ apiKeys: { ...s.apiKeys, [provider]: key } })),
+        set((s) => {
+          const sanitized = sanitizeApiKey(key);
+          const nextKeys = { ...s.apiKeys, [provider]: sanitized };
+          const persistEnabled = s.settings.ai.sessionKeyPersistence !== false;
+          persistApiKeysToSession(nextKeys, persistEnabled);
+          return { apiKeys: nextKeys };
+        }),
       autoSetApiKey: (rawKey: string, detectedOverride?: DetectedApiKey) => {
-        const detected = detectedOverride || detectApiKeyProvider(rawKey);
+        const sanitized = sanitizeApiKey(rawKey);
+        const detected = detectedOverride || detectApiKeyProvider(sanitized);
         if (!detected) return null;
         const { provider, defaultModel } = detected;
-        set((s) => ({
-          apiKeys: { ...s.apiKeys, [provider]: rawKey.trim() },
-          selectedProvider: provider,
-          activeModel: defaultModel,
-          settings: {
-            ...s.settings,
-            ai: { ...s.settings.ai, provider, model: defaultModel },
-          },
-        }));
+        set((s) => {
+          const nextKeys = { ...s.apiKeys, [provider]: sanitized };
+          const persistEnabled = s.settings.ai.sessionKeyPersistence !== false;
+          persistApiKeysToSession(nextKeys, persistEnabled);
+          return {
+            apiKeys: nextKeys,
+            selectedProvider: provider,
+            activeModel: defaultModel,
+            settings: {
+              ...s.settings,
+              ai: { ...s.settings.ai, provider, model: defaultModel },
+            },
+          };
+        });
         return detected;
       },
       setSelectedProvider: (provider) =>

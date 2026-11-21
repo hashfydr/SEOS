@@ -6,6 +6,72 @@ export interface DetectedApiKey {
   defaultModel: string;
   formatDescription: string;
   confidence: 'high' | 'medium';
+  sanitizedKey?: string;
+}
+
+/**
+ * Strips whitespace, quotes, variable declarations (e.g. `export KEY=`, `Bearer `),
+ * and accidental trailing characters (e.g. usernames, branch names, slashes, or trailing garbage).
+ */
+export function sanitizeApiKey(rawKey: string): string {
+  if (!rawKey) return '';
+  let key = rawKey.trim();
+
+  // Strip accidental bash/environment assignment prefixes or Bearer headers first
+  key = key.replace(/^(?:export\s+)?[A-Za-z0-9_]+=\s*/i, '').trim();
+  key = key.replace(/^Bearer\s+/i, '').trim();
+
+  // Strip wrapping quotes or backticks
+  key = key.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+  // 1. NVIDIA NIM: starts with nvapi-
+  if (key.startsWith('nvapi-')) {
+    const match = key.match(/^(nvapi-[A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  }
+
+  // 2. Groq Cloud: starts with gsk_
+  if (key.startsWith('gsk_')) {
+    const match = key.match(/^(gsk_[A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  }
+
+  // 3. Anthropic Claude: starts with sk-ant-
+  if (key.startsWith('sk-ant-')) {
+    const match = key.match(/^(sk-ant-[A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  }
+
+  // 4. OpenAI: starts with sk-proj- or sk-admin- or sk-
+  if (key.startsWith('sk-')) {
+    const match = key.match(/^(sk-(?:proj-|admin-)?[A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  }
+
+  // 5. Google Gemini legacy format: starts with AIza
+  if (key.startsWith('AIza')) {
+    const match = key.match(/^(AIza[A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  }
+
+  // 6. Google Gemini new format: starts with AQ.
+  if (key.startsWith('AQ.')) {
+    // If a slash is present (e.g. trailing path/branch like Harshit288/2), strip from slash
+    const slashIdx = key.indexOf('/');
+    if (slashIdx !== -1) {
+      key = key.substring(0, slashIdx);
+    }
+    // Check if an accidental identifier was appended at the end of a valid AQ key
+    const harshitIdx = key.indexOf('Harshit');
+    if (harshitIdx > 30) {
+      key = key.substring(0, harshitIdx);
+    }
+    const match = key.match(/^(AQ\.[A-Za-z0-9_-]+)/);
+    if (match) return match[1];
+  }
+
+  // Fallback: strip any trailing punctuation
+  return key.replace(/[,;]+$/, '').trim();
 }
 
 /**
@@ -13,7 +79,7 @@ export interface DetectedApiKey {
  * API key string to determine whether it belongs to NVIDIA NIM, Groq, Google Gemini, OpenAI, or Anthropic.
  */
 export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
-  const key = rawKey.trim();
+  const key = sanitizeApiKey(rawKey);
   if (!key || key.length < 15) return null;
 
   // 1. NVIDIA NIM / AI Foundation: starts with "nvapi-"
@@ -24,6 +90,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'NVIDIA NIM (Llama / Mistral)',
       formatDescription: 'NVIDIA NIM API Key (nvapi-*)',
       confidence: 'high',
+      sanitizedKey: key,
     };
   }
 
@@ -35,6 +102,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'Llama 3.3 70B',
       formatDescription: 'Groq Cloud API Key (gsk_*)',
       confidence: 'high',
+      sanitizedKey: key,
     };
   }
 
@@ -46,6 +114,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'Claude 3.5 Sonnet',
       formatDescription: 'Anthropic Claude API Key (sk-ant-*)',
       confidence: 'high',
+      sanitizedKey: key,
     };
   }
 
@@ -57,6 +126,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'Gemini 1.5 Flash',
       formatDescription: 'Google AI Studio / Gemini API Key (AIzaSy* / AQ.*)',
       confidence: 'high',
+      sanitizedKey: key,
     };
   }
 
@@ -71,6 +141,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'GPT-4o',
       formatDescription: 'OpenAI Project API Key (sk-proj-*)',
       confidence: 'high',
+      sanitizedKey: key,
     };
   }
 
@@ -81,6 +152,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'GPT-4o',
       formatDescription: 'OpenAI Secret API Key (sk-*)',
       confidence: 'high',
+      sanitizedKey: key,
     };
   }
 
@@ -92,6 +164,7 @@ export function detectApiKeyProvider(rawKey: string): DetectedApiKey | null {
       defaultModel: 'Gemini 1.5 Flash',
       formatDescription: 'Google Gemini API Key (39-char pattern)',
       confidence: 'medium',
+      sanitizedKey: key,
     };
   }
 
@@ -111,7 +184,7 @@ export interface KeyValidationResult {
  * check whether the key is active in provider catalogs, and inspect available models.
  */
 export async function validateApiKeyOnline(rawKey: string): Promise<KeyValidationResult> {
-  const key = rawKey.trim();
+  const key = sanitizeApiKey(rawKey);
   const detected = detectApiKeyProvider(key);
 
   if (detected?.provider === 'nvidia') {

@@ -123,6 +123,7 @@ export interface AISettings {
   timeoutSeconds: number;
   retryCount: number;
   fallbackProvider: 'none' | 'openai' | 'gemini' | 'anthropic' | 'groq' | 'nvidia';
+  sessionKeyPersistence?: boolean;
 }
 
 export interface PipelineConfigSettings {

@@ -4,7 +4,7 @@ import type { LLMProvider } from '../store';
 import { useStore } from '../store';
 import { sendChatMessage } from '../lib/assistant';
 import { api } from '../lib/api';
-import { detectApiKeyProvider, validateApiKeyOnline } from '../lib/apiKeyDetector';
+import { detectApiKeyProvider, sanitizeApiKey, validateApiKeyOnline } from '../lib/apiKeyDetector';
 
 interface Props { 
   width: number; 
@@ -674,6 +674,27 @@ How would you like to proceed with the engineering pipeline?`;
                     type="password"
                     placeholder="Paste key (nvapi-..., gsk_..., AIzaSy..., sk-proj-...)"
                     value={smartKeyInput}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData('text');
+                      const clean = sanitizeApiKey(pasted);
+                      setSmartKeyInput(clean);
+                      const detected = detectApiKeyProvider(clean);
+                      if (detected) {
+                        autoSetApiKey(clean);
+                        setSmartKeyNotice(`[⚡ Identified: ${detected.providerName}] Probing catalog...`);
+                      }
+                      if (clean.length >= 15) {
+                        setIsValidatingKey(true);
+                        validateApiKeyOnline(clean)
+                          .then((res) => {
+                            if (res.detected) autoSetApiKey(clean, res.detected);
+                            setSmartKeyNotice(res.statusMessage);
+                          })
+                          .catch(() => {})
+                          .finally(() => setIsValidatingKey(false));
+                      }
+                    }}
                     onChange={async (e) => {
                       const val = e.target.value;
                       setSmartKeyInput(val);

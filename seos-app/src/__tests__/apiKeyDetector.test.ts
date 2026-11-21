@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { detectApiKeyProvider } from '../lib/apiKeyDetector';
+import { detectApiKeyProvider, sanitizeApiKey } from '../lib/apiKeyDetector';
 import { useStore } from '../store';
 
 describe('Universal Smart API Key Detector & Auto-Activation', () => {
@@ -114,5 +114,34 @@ describe('Universal Smart API Key Detector & Auto-Activation', () => {
     expect(useStore.getState().selectedProvider).toBe('nvidia');
     expect(useStore.getState().apiKeys.nvidia).toBe(nvidiaKey);
     expect(useStore.getState().settings.ai.provider).toBe('nvidia');
+  });
+
+  it('sanitizeApiKey automatically strips quotes, environment prefixes, and accidental trailing tokens', () => {
+    // Strips bash export prefix and quotes
+    expect(sanitizeApiKey('export GEMINI_API_KEY="AQ.Ab8MockKeyExample1234567890abcdefghijklmnopqrstuv"'))
+      .toBe('AQ.Ab8MockKeyExample1234567890abcdefghijklmnopqrstuv');
+
+    // Strips Bearer prefix
+    expect(sanitizeApiKey('Bearer gsk_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP'))
+      .toBe('gsk_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP');
+
+    // Strips accidental concatenated trailing username/branch like Harshit288/2
+    const keyWithUsername = 'AQ.Ab8MockKeyExample1234567890abcdefghijklmnopqrstuvHarshit288/2';
+    expect(sanitizeApiKey(keyWithUsername))
+      .toBe('AQ.Ab8MockKeyExample1234567890abcdefghijklmnopqrstuv');
+
+    // Strips trailing semicolon or commas
+    expect(sanitizeApiKey('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;'))
+      .toBe('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');
+  });
+
+  it('preserves keys in sessionStorage across reloads when sessionKeyPersistence is enabled', () => {
+    const geminiKey = 'AQ.Ab8MockKeyExample1234567890abcdefghijklmnopqrstuv';
+    useStore.getState().autoSetApiKey(geminiKey);
+
+    const saved = sessionStorage.getItem('seos-session-keys');
+    expect(saved).not.toBeNull();
+    const parsed = JSON.parse(saved!);
+    expect(parsed.gemini).toBe(geminiKey);
   });
 });
