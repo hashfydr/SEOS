@@ -139,7 +139,7 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 : 'border-transparent text-seos-text-3 hover:text-seos-text'
             }`}
           >
-            [01 / COURSE DOCUMENTS ({uploadedDocs.length})]
+            [01 / DOCUMENTS ({uploadedDocs.length})]
           </button>
           <button
             onClick={() => setActiveTab('search')}
@@ -189,7 +189,7 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   className="hidden"
                 />
                 <span className="font-mono text-2xl text-seos-accent">[+]</span>
-                <div className="font-semibold text-sm">Upload Course Syllabus or Technical Literature</div>
+                <div className="font-semibold text-sm">Upload Documents &amp; Reference Literature</div>
                 <p className="text-xs text-seos-text-3 max-w-md font-mono">
                   Supported formats: <strong>.pdf</strong>, <strong>.md</strong>, <strong>.txt</strong>.
                   Files are automatically chunked into 600-character windows with 100-character overlap for vector search.
@@ -209,7 +209,7 @@ export const KnowledgeBaseModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </h3>
                 {uploadedDocs.length === 0 ? (
                   <div className="p-4 rounded-lg bg-seos-surface-2 border border-seos-border text-xs text-seos-text-3 font-mono text-center">
-                    No custom documents indexed yet. Upload a syllabus or textbook chapter to ground AI generation.
+                    No custom documents indexed yet. Upload architecture specs, PRDs, or textbooks to ground AI generation.
                   </div>
                 ) : (
                   <div className="divide-y divide-seos-border border border-seos-border rounded-xl overflow-hidden bg-seos-surface-2/40">

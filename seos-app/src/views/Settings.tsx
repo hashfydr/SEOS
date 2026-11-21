@@ -4,7 +4,7 @@ import { detectApiKeyProvider, sanitizeApiKey, validateApiKeyOnline } from '../l
 import { exportProjectAsMarkdown, exportProjectAsPDF } from '../lib/exportUtils';
 import type { LLMProvider } from '../types';
 
-type SettingsTab = 'ai' | 'workspace' | 'traceability' | 'classroom' | 'backups';
+type SettingsTab = 'ai' | 'workspace' | 'traceability' | 'backups';
 
 interface TabItem {
   id: SettingsTab;
@@ -16,8 +16,7 @@ const TABS: TabItem[] = [
   { id: 'ai', code: '01', label: 'AI Models' },
   { id: 'workspace', code: '02', label: 'Workspace' },
   { id: 'traceability', code: '03', label: 'Traceability' },
-  { id: 'classroom', code: '04', label: 'Classroom' },
-  { id: 'backups', code: '05', label: 'Backups' },
+  { id: 'backups', code: '04', label: 'Backups' },
 ];
 
 export default function SettingsView() {
@@ -414,7 +413,7 @@ export default function SettingsView() {
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-1">
                   <label className="block text-[11px] text-seos-text-2 mb-1">Default Architecture Pattern</label>
                   <select
                     value={settings.project.defaultTemplate}
@@ -425,6 +424,21 @@ export default function SettingsView() {
                     <option value="monolith">Modular Monolith (Clean Architecture)</option>
                     <option value="blank">Blank Slate (Dynamic Recommendation)</option>
                   </select>
+                </div>
+
+                <div className="pt-2 border-t border-seos-border/50">
+                  <label className="flex items-center gap-2 cursor-pointer text-[11px] text-seos-text-2">
+                    <input
+                      type="checkbox"
+                      checked={settings.sync.autoSyncEnabled}
+                      onChange={(e) => {
+                        updateSettings('sync', { autoSyncEnabled: e.target.checked });
+                        triggerToast(`Cloud sync ${e.target.checked ? 'enabled' : 'disabled'}`);
+                      }}
+                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
+                    />
+                    <span>Automatically sync project changes with cloud backend</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -488,65 +502,7 @@ export default function SettingsView() {
             </div>
           )}
 
-          {/* TAB 4: CLASSROOM */}
-          {activeTab === 'classroom' && (
-            <div className="space-y-5 animate-fade-in">
-              <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
-                <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider border-b border-seos-border/50 pb-2.5">
-                  [CLASSROOM SYNC]
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-seos-text-2 mb-1">Classroom Join Code</label>
-                    <input
-                      type="text"
-                      value={settings.classroom.joinCode}
-                      onChange={(e) => updateSettings('classroom', { joinCode: e.target.value })}
-                      placeholder="e.g. SEOS-CS301-A"
-                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text uppercase font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] text-seos-text-2 mb-1">Sync Conflict Resolution</label>
-                    <select
-                      value={settings.sync.conflictResolution}
-                      onChange={(e) => updateSettings('sync', { conflictResolution: e.target.value as any })}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text cursor-pointer"
-                    >
-                      <option value="server_wins">Server Wins (Authoritative)</option>
-                      <option value="client_wins">Client Wins (Local priority)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-seos-border/50 space-y-2.5">
-                  <label className="flex items-center gap-2 cursor-pointer text-[11px] text-seos-text-2">
-                    <input
-                      type="checkbox"
-                      checked={settings.sync.autoSyncEnabled}
-                      onChange={(e) => updateSettings('sync', { autoSyncEnabled: e.target.checked })}
-                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
-                    />
-                    <span>Automatically sync changes to cloud backend</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-[11px] text-seos-text-2">
-                    <input
-                      type="checkbox"
-                      checked={settings.privacy.telemetryEnabled}
-                      onChange={(e) => updateSettings('privacy', { telemetryEnabled: e.target.checked })}
-                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
-                    />
-                    <span>Share anonymous usage metrics to improve prompt quality</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: BACKUPS */}
+          {/* TAB 4: BACKUPS */}
           {activeTab === 'backups' && (
             <div className="space-y-5 animate-fade-in">
               <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">

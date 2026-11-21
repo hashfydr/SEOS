@@ -137,26 +137,6 @@ export default function LeftSidebar({
         </a>
 
         <div className="border-t border-seos-border/50 my-1 mx-1" />
-        {currentUser?.role === 'mentor' && (
-          <button
-            onClick={() => onNavigate('mentor-roster')}
-            title={collapsed ? 'Cohort Roster' : undefined}
-            className={`flex items-center transition-colors rounded mb-2 ${
-              collapsed ? 'justify-center p-2' : 'px-3 py-2'
-            } ${
-              activeView === 'mentor-roster'
-                ? 'bg-seos-cyan/20 text-seos-cyan border border-seos-cyan/40 font-semibold'
-                : 'text-seos-cyan hover:bg-seos-cyan/10 border border-dashed border-seos-cyan/30'
-            }`}
-          >
-            <span className="font-mono text-xs shrink-0">{collapsed ? '[R]' : '[ROSTER]'}</span>
-            {!collapsed && (
-              <span className="ml-2.5 text-xs font-mono tracking-wider uppercase truncate">
-                Cohort Roster
-              </span>
-            )}
-          </button>
-        )}
 
         {items.map((item) => {
           const isActive = activeView === item.id;
@@ -260,27 +240,6 @@ export default function LeftSidebar({
                   <span className="font-semibold text-seos-text">Knowledge Base &amp; RAG</span>
                 </button>
 
-                {/* Classroom */}
-                <button
-                  onClick={() => {
-                    setMoreMenuOpen(false);
-                    if (currentUser?.role === 'mentor') {
-                      onNavigate('mentor-roster');
-                    } else {
-                      setAuthModalOpen(true);
-                    }
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 hover:bg-seos-surface-2 rounded transition-colors text-left text-xs cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-seos-cyan font-bold shrink-0">[CLS]</span>
-                    <span className="font-semibold text-seos-text">Classroom Cohort</span>
-                  </div>
-                  {currentUser?.classroom_code && (
-                    <span className="text-[9px] text-seos-text-3 font-mono">{currentUser.classroom_code}</span>
-                  )}
-                </button>
-
                 {/* Help */}
                 <button
                   onClick={() => {
@@ -381,23 +340,12 @@ export default function LeftSidebar({
               className={`p-2 rounded border border-seos-border bg-seos-surface hover:border-seos-accent/40 transition-all cursor-pointer ${
                 collapsed ? 'text-center' : ''
               }`}
-              title="Click to view account and classroom details"
+              title="Click to view account details"
             >
               <div className="flex items-center justify-between">
-                <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border font-semibold ${
-                  currentUser.role === 'mentor'
-                    ? 'bg-seos-cyan/15 text-seos-cyan border-seos-cyan/30'
-                    : currentUser.role === 'student'
-                      ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
-                      : 'bg-seos-accent/15 text-seos-accent border-seos-accent/30'
-                }`}>
-                  [{currentUser.role === 'solo_dev' ? 'SOLO' : currentUser.role.toUpperCase()}]
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded border font-semibold bg-seos-accent/15 text-seos-accent border-seos-accent/30">
+                  [DEV]
                 </span>
-                {!collapsed && currentUser.classroom_code && (
-                  <span className="font-mono text-[10px] text-seos-text-3">
-                    {currentUser.classroom_code}
-                  </span>
-                )}
               </div>
               {!collapsed && (
                 <div className="mt-1">

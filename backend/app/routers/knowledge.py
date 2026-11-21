@@ -156,7 +156,7 @@ async def upload_document(
     ).delete()
 
     doc_topic = topic.strip() if topic and topic.strip() else filename.replace(f".{ext}", "").replace("_", " ").title()
-    source_label = f"Course Reference: {filename}" if current_user.role == "mentor" else f"Personal Reference: {filename}"
+    source_label = f"Reference: {filename}"
 
     for idx, chunk in enumerate(chunks):
         k_chunk = KnowledgeChunk(
