@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { detectApiKeyProvider, sanitizeApiKey, validateApiKeyOnline } from '../lib/apiKeyDetector';
+import { sanitizeApiKey, validateApiKeyOnline } from '../lib/apiKeyDetector';
 import { exportProjectAsMarkdown, exportProjectAsPDF } from '../lib/exportUtils';
 import type { LLMProvider } from '../types';
 
-type SettingsTab = 'ai' | 'workspace' | 'traceability' | 'backups';
+type SettingsTab = 'ai' | 'workspace' | 'backups';
 
 interface TabItem {
   id: SettingsTab;
@@ -15,8 +15,22 @@ interface TabItem {
 const TABS: TabItem[] = [
   { id: 'ai', code: '01', label: 'AI Models' },
   { id: 'workspace', code: '02', label: 'Workspace' },
-  { id: 'traceability', code: '03', label: 'Traceability' },
-  { id: 'backups', code: '04', label: 'Backups' },
+  { id: 'backups', code: '03', label: 'Backups' },
+];
+
+interface ProviderConfig {
+  id: LLMProvider;
+  name: string;
+  defaultModel: string;
+  placeholder: string;
+}
+
+const PROVIDERS: ProviderConfig[] = [
+  { id: 'gemini', name: 'Google Gemini', defaultModel: 'Gemini 2.5 Flash', placeholder: 'Paste Gemini key (e.g. AIzaSy... or AQ...)' },
+  { id: 'anthropic', name: 'Anthropic Claude', defaultModel: 'Claude 3.5 Sonnet', placeholder: 'Paste Claude key (e.g. sk-ant-...)' },
+  { id: 'openai', name: 'OpenAI', defaultModel: 'GPT-4o / 4o-mini', placeholder: 'Paste OpenAI key (e.g. sk-proj-...)' },
+  { id: 'groq', name: 'Groq Cloud', defaultModel: 'Llama 3.3 70B', placeholder: 'Paste Groq key (e.g. gsk_...)' },
+  { id: 'nvidia', name: 'NVIDIA NIM', defaultModel: 'Llama 3.1 70B', placeholder: 'Paste NVIDIA NIM key (e.g. nvapi-...)' },
 ];
 
 export default function SettingsView() {
@@ -25,14 +39,13 @@ export default function SettingsView() {
   const resetAllSettings = useStore((s) => s.resetAllSettings);
   const apiKeys = useStore((s) => s.apiKeys);
   const setApiKey = useStore((s) => s.setApiKey);
-  const autoSetApiKey = useStore((s) => s.autoSetApiKey);
+  const selectedProvider = useStore((s) => s.selectedProvider);
+  const setSelectedProvider = useStore((s) => s.setSelectedProvider);
   const projectName = useStore((s) => s.projectName);
   const setProjectName = useStore((s) => s.setProjectName);
   const resetProject = useStore((s) => s.resetProject);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('ai');
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [detectedBadge, setDetectedBadge] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -42,9 +55,30 @@ export default function SettingsView() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const activeProvider = settings.ai.provider;
-  const currentKeyForProvider = apiKeys[activeProvider]?.trim();
+  const activeProvider = selectedProvider || settings.ai.provider;
+  const currentKeyForActive = apiKeys[activeProvider]?.trim();
   const sessionPersistenceActive = settings.ai.sessionKeyPersistence !== false;
+
+  const handleSelectProvider = (p: LLMProvider) => {
+    setSelectedProvider(p);
+    updateSettings('ai', { provider: p });
+    setTestStatus(null);
+    const pName = PROVIDERS.find((x) => x.id === p)?.name || p.toUpperCase();
+    triggerToast(`[ACTIVE] ${pName}`);
+  };
+
+  const handleKeyChange = (provider: LLMProvider, raw: string) => {
+    const clean = sanitizeApiKey(raw);
+    setApiKey(provider, clean);
+    if (clean) {
+      triggerToast(`[SAVED] ${PROVIDERS.find((x) => x.id === provider)?.name} key saved`);
+    }
+  };
+
+  const handleClearKey = (provider: LLMProvider) => {
+    setApiKey(provider, '');
+    triggerToast(`[CLEARED] ${PROVIDERS.find((x) => x.id === provider)?.name} key cleared`);
+  };
 
   const handleTestConnection = async () => {
     const key = apiKeys[activeProvider]?.trim();
@@ -70,39 +104,6 @@ export default function SettingsView() {
     } finally {
       setIsValidating(false);
     }
-  };
-
-  const handleKeyChange = (raw: string) => {
-    const sanitized = sanitizeApiKey(raw);
-    setApiKeyInput(sanitized);
-
-    if (!sanitized) {
-      setDetectedBadge(null);
-      return;
-    }
-
-    const detected = detectApiKeyProvider(sanitized);
-    if (detected) {
-      autoSetApiKey(sanitized);
-      setDetectedBadge(`IDENTIFIED: ${detected.providerName} (${detected.defaultModel})`);
-      triggerToast(`[CONNECTED] ${detected.providerName}`);
-    } else if (sanitized.length > 8) {
-      setDetectedBadge('UNRECOGNIZED KEY FORMAT');
-    } else {
-      setDetectedBadge(null);
-    }
-  };
-
-  const handleDisconnectKeys = () => {
-    setApiKey('gemini', '');
-    setApiKey('groq', '');
-    setApiKey('nvidia', '');
-    setApiKey('openai', '');
-    setApiKey('anthropic', '');
-    setApiKeyInput('');
-    setDetectedBadge(null);
-    setTestStatus(null);
-    triggerToast('[RESET] All custom keys removed; proxy active');
   };
 
   const handleExportJSON = () => {
@@ -152,13 +153,13 @@ export default function SettingsView() {
             </h1>
           </div>
           <p className="text-[11px] text-seos-text-3 mt-1">
-            System preferences, inference engines, and workspace rules.
+            System preferences, inference providers, and workspace rules.
           </p>
         </div>
 
         <button
           onClick={() => {
-            if (window.confirm('Reset all settings to default configurations? Project data and API keys will be preserved.')) {
+            if (window.confirm('Reset settings to factory defaults? Your project data and entered API keys are preserved.')) {
               resetAllSettings();
               triggerToast('[RESET] Settings restored to factory defaults');
             }
@@ -199,83 +200,15 @@ export default function SettingsView() {
           {/* TAB 1: AI MODELS */}
           {activeTab === 'ai' && (
             <div className="space-y-5 animate-fade-in">
-              {/* API Key */}
+              {/* Active Engine Card */}
               <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
                 <div className="flex items-center justify-between border-b border-seos-border/50 pb-2.5">
                   <div>
                     <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider">
-                      [API KEY]
+                      [ACTIVE INFERENCE ENGINE]
                     </h2>
                     <p className="text-[11px] text-seos-text-3 mt-0.5">
-                      Ingest key for Gemini, Groq, NVIDIA, OpenAI, or Claude.
-                    </p>
-                  </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded border ${
-                    currentKeyForProvider
-                      ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
-                      : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
-                  }`}>
-                    {currentKeyForProvider ? '[KEY ACTIVE]' : '[PROXY FALLBACK]'}
-                  </span>
-                </div>
-
-                {detectedBadge && (
-                  <div className="p-2 rounded text-[11px] bg-seos-accent/10 border border-seos-accent/30 text-seos-accent flex items-center justify-between font-bold">
-                    <span>[{detectedBadge}]</span>
-                    <button onClick={() => setDetectedBadge(null)} className="text-[10px] text-seos-text-3 hover:text-seos-text">
-                      [DISMISS]
-                    </button>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      value={apiKeyInput}
-                      onChange={(e) => handleKeyChange(e.target.value)}
-                      onPaste={(e) => {
-                        e.preventDefault();
-                        const pasted = e.clipboardData.getData('text');
-                        handleKeyChange(pasted);
-                      }}
-                      placeholder="Paste key (AIzaSy..., AQ..., gsk_..., sk-proj-...)"
-                      className="flex-1 px-3 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
-                    />
-                    {currentKeyForProvider && (
-                      <button
-                        onClick={handleDisconnectKeys}
-                        className="px-3 py-1.5 text-xs font-mono rounded border border-seos-red/30 text-seos-red hover:bg-seos-red/10 transition-colors cursor-pointer shrink-0"
-                      >
-                        [DISCONNECT]
-                      </button>
-                    )}
-                  </div>
-
-                  <label className="flex items-center gap-2 cursor-pointer pt-1 text-[11px] text-seos-text-2">
-                    <input
-                      type="checkbox"
-                      checked={sessionPersistenceActive}
-                      onChange={(e) => {
-                        updateSettings('ai', { sessionKeyPersistence: e.target.checked });
-                        triggerToast(`Session persistence ${e.target.checked ? 'enabled' : 'disabled'}`);
-                      }}
-                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
-                    />
-                    <span>Keep key active across tab reloads (stored in temporary sessionStorage)</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Active Engine */}
-              <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
-                <div className="flex items-center justify-between border-b border-seos-border/50 pb-2.5">
-                  <div>
-                    <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider">
-                      [ACTIVE ENGINE]
-                    </h2>
-                    <p className="text-[11px] text-seos-text-3 mt-0.5">
-                      Select provider and verify remote endpoint connectivity.
+                      Select which provider processes your engineering prompts.
                     </p>
                   </div>
                   <button
@@ -294,74 +227,30 @@ export default function SettingsView() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-seos-text-2 mb-1">Provider</label>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                  <div className="w-full sm:w-2/3">
+                    <label className="block text-[11px] text-seos-text-2 mb-1">Select Active Provider</label>
                     <select
                       value={activeProvider}
-                      onChange={(e) => {
-                        const p = e.target.value as LLMProvider;
-                        updateSettings('ai', { provider: p });
-                        triggerToast(`Switched to ${p.toUpperCase()}`);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text cursor-pointer"
+                      onChange={(e) => handleSelectProvider(e.target.value as LLMProvider)}
+                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text cursor-pointer font-bold"
                     >
-                      <option value="gemini">Google Gemini (Gemini 2.5 Flash / 1.5 Flash)</option>
-                      <option value="groq">Groq Cloud (Llama 3.3 70B)</option>
-                      <option value="nvidia">NVIDIA NIM (Llama / Mistral)</option>
-                      <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
-                      <option value="anthropic">Anthropic Claude (Claude 3.5 Sonnet)</option>
+                      {PROVIDERS.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.defaultModel}) {apiKeys[p.id]?.trim() ? '— [KEY SAVED]' : '— [PROXY]'}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-[11px] text-seos-text-2 mb-1">Timeout (seconds)</label>
-                    <input
-                      type="number"
-                      min={10}
-                      max={120}
-                      value={settings.ai.timeoutSeconds}
-                      onChange={(e) => updateSettings('ai', { timeoutSeconds: Number(e.target.value) })}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <div className="flex justify-between text-[11px] text-seos-text-2 mb-1">
-                      <span>Sampling Temperature</span>
-                      <span className="font-bold text-seos-text">[{settings.ai.temperature}]</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.0"
-                      max="1.0"
-                      step="0.05"
-                      value={settings.ai.temperature}
-                      onChange={(e) => updateSettings('ai', { temperature: parseFloat(e.target.value) })}
-                      className="w-full cursor-pointer accent-seos-accent"
-                    />
-                    <div className="flex justify-between text-[10px] text-seos-text-3 mt-0.5">
-                      <span>0.0 (Precise)</span>
-                      <span>1.0 (Creative)</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-[11px] text-seos-text-2 mb-1">
-                      <span>Max Response Tokens</span>
-                      <span className="font-bold text-seos-text">[{settings.ai.maxTokens}]</span>
-                    </div>
-                    <input
-                      type="number"
-                      min={512}
-                      max={16384}
-                      step={512}
-                      value={settings.ai.maxTokens}
-                      onChange={(e) => updateSettings('ai', { maxTokens: Number(e.target.value) })}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
-                    />
+                  <div className="sm:self-end pb-0.5">
+                    <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
+                      currentKeyForActive
+                        ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
+                        : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
+                    }`}>
+                      {currentKeyForActive ? '[KEY ACTIVE]' : '[PROXY FALLBACK]'}
+                    </span>
                   </div>
                 </div>
 
@@ -377,6 +266,93 @@ export default function SettingsView() {
                       className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
                     />
                     <span>Require manual approval before advancing between pipeline stages</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Multi-Provider Key Manager */}
+              <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
+                <div className="border-b border-seos-border/50 pb-2.5">
+                  <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider">
+                    [CONFIGURED API KEYS]
+                  </h2>
+                  <p className="text-[11px] text-seos-text-3 mt-0.5">
+                    Store keys for each provider independently. Switching active providers keeps all your keys safely in memory without re-entering them.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {PROVIDERS.map((prov) => {
+                    const hasKey = Boolean(apiKeys[prov.id]?.trim());
+                    const isActive = activeProvider === prov.id;
+                    return (
+                      <div
+                        key={prov.id}
+                        className={`p-3 rounded border transition-colors ${
+                          isActive
+                            ? 'bg-seos-surface-2/60 border-seos-accent/40'
+                            : 'bg-seos-bg/40 border-seos-border/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-seos-text">{prov.name}</span>
+                            <span className="text-[10px] text-seos-text-3">({prov.defaultModel})</span>
+                            {isActive && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-seos-accent/15 text-seos-accent border border-seos-accent/30 font-bold">
+                                [● CURRENT ACTIVE]
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                              hasKey
+                                ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
+                                : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
+                            }`}>
+                              {hasKey ? '[SAVED]' : '[EMPTY]'}
+                            </span>
+                            {hasKey && (
+                              <button
+                                onClick={() => handleClearKey(prov.id)}
+                                className="px-2 py-0.5 text-[10px] rounded border border-seos-red/30 text-seos-red hover:bg-seos-red/10 cursor-pointer"
+                              >
+                                [CLEAR]
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <input
+                          type="password"
+                          value={apiKeys[prov.id] || ''}
+                          onChange={(e) => handleKeyChange(prov.id, e.target.value)}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pasted = e.clipboardData.getData('text');
+                            handleKeyChange(prov.id, pasted);
+                          }}
+                          placeholder={prov.placeholder}
+                          className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 border-t border-seos-border/50">
+                  <label className="flex items-center gap-2 cursor-pointer text-[11px] text-seos-text-2">
+                    <input
+                      type="checkbox"
+                      checked={sessionPersistenceActive}
+                      onChange={(e) => {
+                        updateSettings('ai', { sessionKeyPersistence: e.target.checked });
+                        triggerToast(`Session persistence ${e.target.checked ? 'enabled' : 'disabled'}`);
+                      }}
+                      className="rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
+                    />
+                    <span>Keep keys active across tab reloads (stored in temporary sessionStorage; cleared on browser close)</span>
                   </label>
                 </div>
               </div>
@@ -444,65 +420,7 @@ export default function SettingsView() {
             </div>
           )}
 
-          {/* TAB 3: TRACEABILITY */}
-          {activeTab === 'traceability' && (
-            <div className="space-y-5 animate-fade-in">
-              <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
-                <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider border-b border-seos-border/50 pb-2.5">
-                  [QUALITY STANDARDS]
-                </h2>
-
-                <div className="space-y-3">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.traceability.enforceInvest}
-                      onChange={(e) => updateSettings('traceability', { enforceInvest: e.target.checked })}
-                      className="mt-0.5 rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-seos-text">Enforce INVEST story checklist</div>
-                      <div className="text-[11px] text-seos-text-3 mt-0.5">
-                        Validate that stories are Independent, Negotiable, Valuable, Estimable, Small, and Testable.
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.traceability.enforceGherkin}
-                      onChange={(e) => updateSettings('traceability', { enforceGherkin: e.target.checked })}
-                      className="mt-0.5 rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-seos-text">Require Gherkin acceptance criteria</div>
-                      <div className="text-[11px] text-seos-text-3 mt-0.5">
-                        Format acceptance scenarios using standard Given / When / Then syntax.
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.traceability.orphanArtifactDetection}
-                      onChange={(e) => updateSettings('traceability', { orphanArtifactDetection: e.target.checked })}
-                      className="mt-0.5 rounded border-seos-border text-seos-accent focus:ring-0 cursor-pointer"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-seos-text">Detect drift and orphan artifacts</div>
-                      <div className="text-[11px] text-seos-text-3 mt-0.5">
-                        Highlight unlinked requirements or database entities missing matching API endpoints.
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: BACKUPS */}
+          {/* TAB 3: BACKUPS */}
           {activeTab === 'backups' && (
             <div className="space-y-5 animate-fade-in">
               <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
