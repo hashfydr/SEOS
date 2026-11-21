@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { sanitizeApiKey, validateApiKeyOnline } from '../lib/apiKeyDetector';
+import { detectApiKeyProvider, sanitizeApiKey, validateApiKeyOnline } from '../lib/apiKeyDetector';
 import { exportProjectAsMarkdown, exportProjectAsPDF } from '../lib/exportUtils';
 import type { LLMProvider } from '../types';
 
@@ -18,20 +18,19 @@ const TABS: TabItem[] = [
   { id: 'backups', code: '03', label: 'Backups' },
 ];
 
-interface ProviderConfig {
-  id: LLMProvider;
-  name: string;
-  defaultModel: string;
-  placeholder: string;
-}
+const PROVIDER_INFO: Record<LLMProvider, { name: string; defaultModel: string }> = {
+  gemini: { name: 'Google Gemini', defaultModel: 'Gemini 2.5 Flash' },
+  anthropic: { name: 'Anthropic Claude', defaultModel: 'Claude 3.5 Sonnet' },
+  openai: { name: 'OpenAI', defaultModel: 'GPT-4o / 4o-mini' },
+  groq: { name: 'Groq Cloud', defaultModel: 'Llama 3.3 70B' },
+  nvidia: { name: 'NVIDIA NIM', defaultModel: 'Llama 3.1 70B' },
+};
 
-const PROVIDERS: ProviderConfig[] = [
-  { id: 'gemini', name: 'Google Gemini', defaultModel: 'Gemini 2.5 Flash', placeholder: 'Paste Gemini key (e.g. AIzaSy... or AQ...)' },
-  { id: 'anthropic', name: 'Anthropic Claude', defaultModel: 'Claude 3.5 Sonnet', placeholder: 'Paste Claude key (e.g. sk-ant-...)' },
-  { id: 'openai', name: 'OpenAI', defaultModel: 'GPT-4o / 4o-mini', placeholder: 'Paste OpenAI key (e.g. sk-proj-...)' },
-  { id: 'groq', name: 'Groq Cloud', defaultModel: 'Llama 3.3 70B', placeholder: 'Paste Groq key (e.g. gsk_...)' },
-  { id: 'nvidia', name: 'NVIDIA NIM', defaultModel: 'Llama 3.1 70B', placeholder: 'Paste NVIDIA NIM key (e.g. nvapi-...)' },
-];
+function maskKey(key: string): string {
+  if (!key) return '';
+  if (key.length <= 10) return '••••••••';
+  return `${key.slice(0, 6)}••••••••${key.slice(-4)}`;
+}
 
 export default function SettingsView() {
   const settings = useStore((s) => s.settings);
@@ -46,6 +45,8 @@ export default function SettingsView() {
   const resetProject = useStore((s) => s.resetProject);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('ai');
+  const [newKeyInput, setNewKeyInput] = useState('');
+  const [unrecognizedKey, setUnrecognizedKey] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -59,25 +60,61 @@ export default function SettingsView() {
   const currentKeyForActive = apiKeys[activeProvider]?.trim();
   const sessionPersistenceActive = settings.ai.sessionKeyPersistence !== false;
 
-  const handleSelectProvider = (p: LLMProvider) => {
-    setSelectedProvider(p);
-    updateSettings('ai', { provider: p });
-    setTestStatus(null);
-    const pName = PROVIDERS.find((x) => x.id === p)?.name || p.toUpperCase();
-    triggerToast(`[ACTIVE] ${pName}`);
-  };
+  // Active saved keys list
+  const savedKeysList = (Object.keys(PROVIDER_INFO) as LLMProvider[]).filter(
+    (p) => Boolean(apiKeys[p]?.trim())
+  );
 
-  const handleKeyChange = (provider: LLMProvider, raw: string) => {
+  const handleAddKey = () => {
+    const raw = newKeyInput.trim();
+    if (!raw) return;
     const clean = sanitizeApiKey(raw);
-    setApiKey(provider, clean);
-    if (clean) {
-      triggerToast(`[SAVED] ${PROVIDERS.find((x) => x.id === provider)?.name} key saved`);
+    const detected = detectApiKeyProvider(clean);
+
+    if (detected) {
+      setApiKey(detected.provider, clean);
+      setSelectedProvider(detected.provider);
+      updateSettings('ai', { provider: detected.provider });
+      setNewKeyInput('');
+      setUnrecognizedKey(null);
+      setTestStatus(null);
+      triggerToast(`[ADDED] ${detected.providerName} key recognized and activated`);
+    } else if (clean.length >= 10) {
+      setUnrecognizedKey(clean);
+    } else {
+      triggerToast('[ERROR] Key too short or invalid');
     }
   };
 
-  const handleClearKey = (provider: LLMProvider) => {
-    setApiKey(provider, '');
-    triggerToast(`[CLEARED] ${PROVIDERS.find((x) => x.id === provider)?.name} key cleared`);
+  const handleManualAssign = (provider: LLMProvider) => {
+    if (!unrecognizedKey) return;
+    setApiKey(provider, unrecognizedKey);
+    setSelectedProvider(provider);
+    updateSettings('ai', { provider });
+    setNewKeyInput('');
+    setUnrecognizedKey(null);
+    setTestStatus(null);
+    triggerToast(`[ADDED] Assigned key to ${PROVIDER_INFO[provider].name}`);
+  };
+
+  const handleSelectActiveProvider = (p: LLMProvider) => {
+    setSelectedProvider(p);
+    updateSettings('ai', { provider: p });
+    setTestStatus(null);
+    triggerToast(`[ACTIVE] ${PROVIDER_INFO[p].name}`);
+  };
+
+  const handleRemoveKey = (p: LLMProvider) => {
+    setApiKey(p, '');
+    triggerToast(`[REMOVED] ${PROVIDER_INFO[p].name} key deleted`);
+    // If we removed the active key, switch to another saved key if available
+    const remaining = savedKeysList.filter((k) => k !== p);
+    if (remaining.length > 0) {
+      handleSelectActiveProvider(remaining[0]);
+    } else {
+      setSelectedProvider('gemini');
+      updateSettings('ai', { provider: 'gemini' });
+    }
   };
 
   const handleTestConnection = async () => {
@@ -208,7 +245,7 @@ export default function SettingsView() {
                       [ACTIVE INFERENCE ENGINE]
                     </h2>
                     <p className="text-[11px] text-seos-text-3 mt-0.5">
-                      Select which provider processes your engineering prompts.
+                      Current provider driving engineering generation and chat assistant.
                     </p>
                   </div>
                   <button
@@ -228,30 +265,24 @@ export default function SettingsView() {
                 )}
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
-                  <div className="w-full sm:w-2/3">
-                    <label className="block text-[11px] text-seos-text-2 mb-1">Select Active Provider</label>
-                    <select
-                      value={activeProvider}
-                      onChange={(e) => handleSelectProvider(e.target.value as LLMProvider)}
-                      className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text cursor-pointer font-bold"
-                    >
-                      {PROVIDERS.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.defaultModel}) {apiKeys[p.id]?.trim() ? '— [KEY SAVED]' : '— [PROXY]'}
-                        </option>
-                      ))}
-                    </select>
+                  <div>
+                    <div className="text-sm font-bold text-seos-text flex items-center gap-2">
+                      <span className="text-seos-accent font-bold">::</span>
+                      <span>{PROVIDER_INFO[activeProvider].name}</span>
+                      <span className="text-xs font-normal text-seos-text-3">({PROVIDER_INFO[activeProvider].defaultModel})</span>
+                    </div>
+                    <div className="text-[11px] text-seos-text-3 mt-0.5">
+                      {currentKeyForActive ? `Active custom key: ${maskKey(currentKeyForActive)}` : 'Using built-in server proxy (free demo tier)'}
+                    </div>
                   </div>
 
-                  <div className="sm:self-end pb-0.5">
-                    <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
-                      currentKeyForActive
-                        ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
-                        : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
-                    }`}>
-                      {currentKeyForActive ? '[KEY ACTIVE]' : '[PROXY FALLBACK]'}
-                    </span>
-                  </div>
+                  <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
+                    currentKeyForActive
+                      ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
+                      : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
+                  }`}>
+                    {currentKeyForActive ? '[KEY ACTIVE]' : '[PROXY FALLBACK]'}
+                  </span>
                 </div>
 
                 <div className="pt-2 border-t border-seos-border/50">
@@ -270,76 +301,131 @@ export default function SettingsView() {
                 </div>
               </div>
 
-              {/* Multi-Provider Key Manager */}
+              {/* Add Key Input with [+] Button */}
               <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
-                <div className="border-b border-seos-border/50 pb-2.5">
+                <div>
                   <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider">
-                    [CONFIGURED API KEYS]
+                    [ADD API KEY]
                   </h2>
                   <p className="text-[11px] text-seos-text-3 mt-0.5">
-                    Store keys for each provider independently. Switching active providers keeps all your keys safely in memory without re-entering them.
+                    Paste any API key (Gemini, Claude, OpenAI, Groq, NVIDIA). Click [+] to recognize and add it.
                   </p>
                 </div>
 
-                <div className="space-y-3 pt-1">
-                  {PROVIDERS.map((prov) => {
-                    const hasKey = Boolean(apiKeys[prov.id]?.trim());
-                    const isActive = activeProvider === prov.id;
-                    return (
-                      <div
-                        key={prov.id}
-                        className={`p-3 rounded border transition-colors ${
-                          isActive
-                            ? 'bg-seos-surface-2/60 border-seos-accent/40'
-                            : 'bg-seos-bg/40 border-seos-border/60'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-seos-text">{prov.name}</span>
-                            <span className="text-[10px] text-seos-text-3">({prov.defaultModel})</span>
-                            {isActive && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-seos-accent/15 text-seos-accent border border-seos-accent/30 font-bold">
-                                [● CURRENT ACTIVE]
-                              </span>
-                            )}
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={newKeyInput}
+                    onChange={(e) => setNewKeyInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddKey();
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const clean = sanitizeApiKey(e.clipboardData.getData('text'));
+                      setNewKeyInput(clean);
+                    }}
+                    placeholder="Paste key (AIzaSy..., AQ..., sk-ant-..., sk-proj-..., gsk_...)"
+                    className="flex-1 px-3 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
+                  />
+                  <button
+                    onClick={handleAddKey}
+                    disabled={!newKeyInput.trim()}
+                    className="px-4 py-1.5 text-xs font-mono font-bold rounded bg-seos-accent text-white hover:bg-seos-accent-2 transition-colors cursor-pointer shrink-0 disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <span>[+]</span>
+                    <span>ADD KEY</span>
+                  </button>
+                </div>
+
+                {/* Unrecognized Key Manual Assign fallback */}
+                {unrecognizedKey && (
+                  <div className="p-3 rounded bg-seos-amber/10 border border-seos-amber/30 text-[11px] space-y-2">
+                    <div className="font-bold text-seos-amber">
+                      Key format not automatically detected. Select which provider this key belongs to:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(Object.keys(PROVIDER_INFO) as LLMProvider[]).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => handleManualAssign(p)}
+                          className="px-2 py-1 rounded bg-seos-surface border border-seos-border hover:border-seos-accent text-seos-text text-[10px] cursor-pointer"
+                        >
+                          [+] {PROVIDER_INFO[p].name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Saved API Keys List */}
+              <div className="p-4 rounded border border-seos-border bg-seos-surface space-y-3">
+                <div className="border-b border-seos-border/50 pb-2.5 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xs font-bold text-seos-text uppercase tracking-wider">
+                      [SAVED API KEYS ({savedKeysList.length})]
+                    </h2>
+                    <p className="text-[11px] text-seos-text-3 mt-0.5">
+                      All added keys are kept safely in memory. Click [USE KEY] to switch active provider anytime.
+                    </p>
+                  </div>
+                </div>
+
+                {savedKeysList.length === 0 ? (
+                  <div className="p-4 rounded bg-seos-surface-2 border border-seos-border text-center text-seos-text-3 text-[11px]">
+                    No custom keys added yet. The system is currently using the free built-in server proxy.
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-1">
+                    {savedKeysList.map((p) => {
+                      const isActive = activeProvider === p;
+                      const raw = apiKeys[p] || '';
+                      return (
+                        <div
+                          key={p}
+                          className={`p-3 rounded border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-colors ${
+                            isActive
+                              ? 'bg-seos-surface-2/70 border-seos-accent/50'
+                              : 'bg-seos-bg/50 border-seos-border'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-seos-text">{PROVIDER_INFO[p].name}</span>
+                              <span className="text-[10px] text-seos-text-3">({PROVIDER_INFO[p].defaultModel})</span>
+                              {isActive && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-seos-accent text-white font-bold">
+                                  ● IN USE
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-seos-text-3 font-mono mt-0.5">
+                              Key: <span className="text-seos-text">{maskKey(raw)}</span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                              hasKey
-                                ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
-                                : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
-                            }`}>
-                              {hasKey ? '[SAVED]' : '[EMPTY]'}
-                            </span>
-                            {hasKey && (
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            {!isActive && (
                               <button
-                                onClick={() => handleClearKey(prov.id)}
-                                className="px-2 py-0.5 text-[10px] rounded border border-seos-red/30 text-seos-red hover:bg-seos-red/10 cursor-pointer"
+                                onClick={() => handleSelectActiveProvider(p)}
+                                className="px-2.5 py-1 text-[10px] font-bold rounded bg-seos-accent text-white hover:bg-seos-accent-2 transition-colors cursor-pointer"
                               >
-                                [CLEAR]
+                                [USE THIS KEY]
                               </button>
                             )}
+                            <button
+                              onClick={() => handleRemoveKey(p)}
+                              className="px-2 py-1 text-[10px] rounded border border-seos-red/30 text-seos-red hover:bg-seos-red/10 transition-colors cursor-pointer"
+                            >
+                              [REMOVE]
+                            </button>
                           </div>
                         </div>
-
-                        <input
-                          type="password"
-                          value={apiKeys[prov.id] || ''}
-                          onChange={(e) => handleKeyChange(prov.id, e.target.value)}
-                          onPaste={(e) => {
-                            e.preventDefault();
-                            const pasted = e.clipboardData.getData('text');
-                            handleKeyChange(prov.id, pasted);
-                          }}
-                          placeholder={prov.placeholder}
-                          className="w-full px-2.5 py-1.5 text-xs font-mono rounded bg-seos-bg border border-seos-border focus:border-seos-accent outline-none text-seos-text"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-seos-border/50">
                   <label className="flex items-center gap-2 cursor-pointer text-[11px] text-seos-text-2">
