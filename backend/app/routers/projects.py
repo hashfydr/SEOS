@@ -207,6 +207,40 @@ def update_project(
 ):
     project = get_authorized_project(project_id, current_user, db, require_write=True)
     
+    # Atomic conditional optimistic concurrency control when version is supplied
+    if project_in.version is not None:
+        update_data = {"version": Project.version + 1}
+        if project_in.title is not None:
+            update_data["title"] = project_in.title
+        if project_in.idea is not None:
+            update_data["idea"] = project_in.idea
+        if project_in.status is not None:
+            update_data["status"] = project_in.status
+
+        result = db.query(Project).filter(
+            Project.id == project.id,
+            Project.version == project_in.version
+        ).update(
+            update_data,
+            synchronize_session="fetch"
+        )
+
+        if result == 0:
+            db.rollback()
+            latest_version = db.query(Project.version).filter(Project.id == project.id).scalar()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "detail": "Version conflict: project was modified in another session",
+                    "current_version": latest_version,
+                }
+            )
+
+        db.commit()
+        db.refresh(project)
+        return format_project(project)
+
+    # Fallback when version is omitted (backward compatibility)
     if project_in.title is not None:
         project.title = project_in.title
     if project_in.idea is not None:

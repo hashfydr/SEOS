@@ -553,10 +553,42 @@ def test_canonical_traceability_graph(client):
     assert trace_res2.status_code == 200
     assert trace_res2.json()["test_cases_count"] == 1
 
+from app.config import settings
+
 def test_operational_metrics_and_security_headers(client):
-    """Assert operational telemetry endpoint and strict HTTP security headers."""
-    res = client.get("/api/v1/metrics")
-    assert res.status_code == 200
+    """Assert operational telemetry endpoint protection and strict HTTP security headers."""
+    # Unauthenticated access must be rejected with 401
+    unauth_res = client.get("/api/v1/metrics")
+    assert unauth_res.status_code == 401
+    assert "Authentication required" in unauth_res.json()["detail"]
+
+    # Student access must be rejected with 403
+    client.post("/api/v1/auth/register", json={
+        "name": "Metrics Student",
+        "email": "metrics_student@thapar.edu",
+        "password": "password123",
+        "role": "student"
+    })
+    student_token = client.post("/api/v1/auth/login", json={
+        "email": "metrics_student@thapar.edu",
+        "password": "password123"
+    }).json()["access_token"]
+    student_res = client.get("/api/v1/metrics", headers={"Authorization": f"Bearer {student_token}"})
+    assert student_res.status_code == 403
+
+    # Access via X-Metrics-Key succeeds (200)
+    # Temporarily set a known non-empty key so hmac.compare_digest can authenticate
+    _orig_key = settings.METRICS_API_KEY
+    settings.METRICS_API_KEY = "test-metrics-key-for-pytest"
+    try:
+        res = client.get("/api/v1/metrics", headers={"X-Metrics-Key": "test-metrics-key-for-pytest"})
+        assert res.status_code == 200
+
+        # Also test root /metrics endpoint
+        root_metrics_res = client.get("/metrics", headers={"X-Metrics-Key": "test-metrics-key-for-pytest"})
+        assert root_metrics_res.status_code == 200
+    finally:
+        settings.METRICS_API_KEY = _orig_key
     
     # Assert Strict Security Headers
     assert res.headers["x-content-type-options"] == "nosniff"
@@ -577,5 +609,78 @@ def test_operational_metrics_and_security_headers(client):
     assert "memory_rss_mb" in metrics
     assert "database_connected" in metrics
     assert metrics["database_connected"] is True
+
+
+def test_cors_strict_allowlist_rejects_untrusted_origin(client):
+    """Assert CORS does not reflect arbitrary untrusted origins (e.g. evil.com)."""
+    res = client.get("/api/v1/health", headers={"Origin": "https://evil.com"})
+    assert res.status_code == 200
+    # Origin is untrusted, so Access-Control-Allow-Origin MUST NOT reflect evil.com
+    assert res.headers.get("access-control-allow-origin") != "https://evil.com"
+
+
+def test_put_project_atomic_optimistic_concurrency_control(client):
+    """Assert PUT /projects/{id} enforces atomic OCC when version is supplied, raising 409 Conflict on race."""
+    client.post("/api/v1/auth/register", json={
+        "name": "OCC Runner",
+        "email": "occ_runner@thapar.edu",
+        "password": "password123",
+        "role": "solo_dev"
+    })
+    token = client.post("/api/v1/auth/login", json={
+        "email": "occ_runner@thapar.edu",
+        "password": "password123"
+    }).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    proj = client.post("/api/v1/projects", json={"title": "OCC Base Project"}, headers=headers).json()
+    proj_id = proj["id"]
+    assert proj["version"] == 1
+
+    # First concurrent update with version=1 succeeds -> version becomes 2
+    res_a = client.put(f"/api/v1/projects/{proj_id}", json={
+        "title": "Updated by Client A",
+        "version": 1,
+    }, headers=headers)
+    assert res_a.status_code == 200
+    assert res_a.json()["version"] == 2
+    assert res_a.json()["title"] == "Updated by Client A"
+
+    # Second concurrent update still carrying stale version=1 -> 409 Conflict
+    res_b = client.put(f"/api/v1/projects/{proj_id}", json={
+        "title": "Updated by Client B (Stale)",
+        "version": 1,
+    }, headers=headers)
+    assert res_b.status_code == 409
+    body_b = res_b.json()
+    assert "Version conflict" in (body_b.get("detail") or "")
+    assert body_b.get("current_version") == 2
+
+
+def test_root_health_and_docs_compatibility(client):
+    """Assert root /health returns 200 OK and root /docs redirects to /api/v1/docs with 307."""
+    health_res = client.get("/health")
+    assert health_res.status_code == 200
+    assert health_res.json()["status"] == "healthy"
+
+    docs_res = client.get("/docs", follow_redirects=False)
+    assert docs_res.status_code == 307
+    assert docs_res.headers["location"] == "/api/v1/docs"
+
+
+def test_production_csp_omits_localhost(client):
+    """Assert production CSP header does not include localhost or ws://localhost."""
+    orig_env = settings.ENV
+    try:
+        settings.ENV = "production"
+        res = client.get("/api/v1/health")
+        assert res.status_code == 200
+        csp = res.headers.get("content-security-policy", "")
+        assert "http://localhost" not in csp
+        assert "ws://localhost" not in csp
+        assert "https://seos-seos4.vercel.app" in csp
+    finally:
+        settings.ENV = orig_env
+
 
 

@@ -5,7 +5,7 @@ import { exportProjectAsMarkdown, exportProjectAsPDF } from '../lib/exportUtils'
 
 const Documentation: React.FC = () => {
   const docs = useStore((s) => s.docs);
-  const isStale = useStore((s) => s.staleArtifacts.docs);
+  const isStale = useStore((s) => s.staleArtifacts?.docs);
   const isGenerating = useStore((s) => s.pipeline.running);
   const [activeTab, setActiveTab] = useState(docs[0]?.id || 'srs');
 

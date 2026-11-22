@@ -190,6 +190,7 @@ class ProjectUpdate(BaseModel):
     title: Optional[str] = None
     idea: Optional[str] = None
     status: Optional[str] = None
+    version: Optional[int] = None
 
 class ProjectResponse(BaseModel):
     id: str

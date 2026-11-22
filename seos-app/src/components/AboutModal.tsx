@@ -40,6 +40,7 @@ export const AboutModal: React.FC<Props> = ({ isOpen, onClose, onGoToHomepage })
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-seos-text-3 hover:text-seos-text font-mono text-sm px-2 py-1 rounded transition-colors cursor-pointer"
           >
             [X]

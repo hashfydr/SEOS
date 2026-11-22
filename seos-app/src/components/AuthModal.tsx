@@ -130,6 +130,7 @@ export const AuthModal: React.FC = () => {
           </div>
           <button
             onClick={() => setOpen(false)}
+            aria-label="Close dialog"
             className="text-seos-text-3 hover:text-seos-text font-mono text-xs px-1.5 py-0.5 rounded transition-colors cursor-pointer"
           >
             [X]

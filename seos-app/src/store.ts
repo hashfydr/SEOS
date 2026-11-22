@@ -228,8 +228,8 @@ interface SEOSState {
 
   // === Stale Artifact Tracking ===
   /** Tracks which downstream artifacts are outdated after upstream edits */
-  staleArtifacts: { api: boolean; docs: boolean; architecture: boolean };
-  setStaleArtifacts: (patch: Partial<{ api: boolean; docs: boolean; architecture: boolean }>) => void;
+  staleArtifacts: { stories: boolean; model: boolean; api: boolean; docs: boolean; architecture: boolean };
+  setStaleArtifacts: (patch: Partial<{ stories: boolean; model: boolean; api: boolean; docs: boolean; architecture: boolean }>) => void;
   clearStaleArtifacts: () => void;
 
   // === Authentication & Role ===
@@ -327,9 +327,9 @@ export const useStore = create<SEOSState>()(
       setActiveModel: (model) => set({ activeModel: model }),
 
       // === Stale Artifact Tracking ===
-      staleArtifacts: { api: false, docs: false, architecture: false },
+      staleArtifacts: { stories: false, model: false, api: false, docs: false, architecture: false },
       setStaleArtifacts: (patch) => set((s) => ({ staleArtifacts: { ...s.staleArtifacts, ...patch } })),
-      clearStaleArtifacts: () => set({ staleArtifacts: { api: false, docs: false, architecture: false } }),
+      clearStaleArtifacts: () => set({ staleArtifacts: { stories: false, model: false, api: false, docs: false, architecture: false } }),
 
       // === Authentication & Role ===
       currentUser: null,
@@ -379,18 +379,45 @@ export const useStore = create<SEOSState>()(
       setRequirements: (reqs) => set({ requirements: reqs }),
       addRequirement: (req) => set((s) => ({ requirements: [...s.requirements, req] })),
       updateRequirement: (id, patch) =>
-        set((s) => ({
-          requirements: s.requirements.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-        })),
+        set((s) => {
+          const isInvalidation =
+            patch.description !== undefined ||
+            patch.status === 'rejected' ||
+            patch.priority !== undefined ||
+            patch.type !== undefined;
+          return {
+            requirements: s.requirements.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+            staleArtifacts: isInvalidation
+              ? {
+                  stories: true,
+                  model: true,
+                  api: true,
+                  docs: true,
+                  architecture: true,
+                }
+              : s.staleArtifacts,
+          };
+        }),
       deleteRequirement: (id) =>
-        set((s) => ({ requirements: s.requirements.filter((r) => r.id !== id) })),
+        set((s) => ({
+          requirements: s.requirements.filter((r) => r.id !== id),
+          staleArtifacts: {
+            stories: true,
+            model: true,
+            api: true,
+            docs: true,
+            architecture: true,
+          },
+        })),
 
       // === Actions — User Stories ===
-      setUserStories: (stories) => set({ userStories: stories }),
+      setUserStories: (stories) =>
+        set((s) => ({ userStories: stories, staleArtifacts: { ...s.staleArtifacts, stories: false } })),
       addUserStory: (story) => set((s) => ({ userStories: [...s.userStories, story] })),
 
       // === Actions — UML ===
-      setUMLNodes: (nodes) => set({ umlNodes: nodes }),
+      setUMLNodes: (nodes) =>
+        set((s) => ({ umlNodes: nodes, staleArtifacts: { ...s.staleArtifacts, model: false } })),
       setUMLEdges: (edges) => set({ umlEdges: edges }),
 
       // === Actions — Docs ===
@@ -465,7 +492,7 @@ export const useStore = create<SEOSState>()(
           openapiYaml: '',
           architecture: emptyArchitecture(),
           messages: [greeting()],
-          staleArtifacts: { api: false, docs: false, architecture: false },
+          staleArtifacts: { stories: false, model: false, api: false, docs: false, architecture: false },
           pipeline: { running: false, stage: null, planned: [], done: [], error: null },
           llmNotice: null,
         }),

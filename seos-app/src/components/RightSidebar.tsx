@@ -556,6 +556,7 @@ How would you like to proceed with the engineering pipeline?`;
               </div>
             )}
             <textarea
+              aria-label="AI assistant prompt"
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}

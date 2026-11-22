@@ -199,6 +199,17 @@ function Workspace({ activeView, setActiveView }: { activeView: ViewId; setActiv
                 [● SAVED]
               </span>
             )}
+            {syncState === 'conflict' && (
+              <span className="font-mono text-[11px] text-seos-amber px-2 py-0.5 rounded bg-seos-amber/10 border border-seos-amber/40 font-semibold flex items-center gap-1.5" title="Version conflict detected">
+                <span>[⚠ CONFLICT]</span>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="underline hover:text-seos-text cursor-pointer ml-1"
+                >
+                  Reload
+                </button>
+              </span>
+            )}
             <div className="mr-2"><PipelineStatus /></div>
             <button
               onClick={toggleChat}
@@ -301,6 +312,21 @@ function Workspace({ activeView, setActiveView }: { activeView: ViewId; setActiv
             </div>
           </div>
         </div>
+
+        {syncState === 'conflict' && (
+          <div className="bg-seos-amber/15 border-b border-seos-amber/40 px-4 py-2 text-xs text-seos-amber flex items-center justify-between z-30 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">⚠️</span>
+              <span><strong>Version Conflict:</strong> This project was modified in another session. Please reload to sync the latest state.</span>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-3 py-1 rounded bg-seos-amber text-black font-semibold text-xs hover:bg-seos-amber/90 transition-colors cursor-pointer"
+            >
+              Reload Latest State
+            </button>
+          </div>
+        )}
         
         <div className="flex-1 flex min-h-0 overflow-hidden relative">
           <MainWorkspace activeView={activeView} />

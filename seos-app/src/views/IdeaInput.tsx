@@ -200,6 +200,7 @@ export default function IdeaInput() {
           
           <div className="bg-seos-surface border border-seos-border rounded-lg p-1 focus-within:border-seos-accent transition-colors">
             <textarea
+              aria-label="Product idea description"
               className="w-full bg-transparent text-seos-text-primary p-4 outline-none resize-none min-h-[120px] placeholder-seos-text-secondary/50"
               placeholder="Describe your idea, e.g. A judicial organizer for courts that schedules hearings, avoids conflicts and manages case filings."
               value={idea}

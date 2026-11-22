@@ -86,6 +86,10 @@ export function getAuthToken(): string | null {
   return storedToken;
 }
 
+export function isAuthenticated(): boolean {
+  return !!getAuthToken();
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
@@ -102,15 +106,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     let errorDetail = `Request failed with status ${res.status}`;
+    let errJson: any = null;
     try {
-      const errJson = await res.json();
-      if (errJson.detail) {
+      errJson = await res.json();
+      if (errJson && errJson.detail) {
         errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
       }
     } catch {
       // Body not JSON
     }
-    throw new Error(errorDetail);
+    const error: any = new Error(errorDetail);
+    error.status = res.status;
+    error.data = errJson;
+    throw error;
   }
 
   return res.json() as Promise<T>;
@@ -163,7 +171,10 @@ export const api = {
     request<ClassroomRoster>(`/classrooms/${classroomId}/roster`),
 
   // Projects
-  listProjects: () => request<any[]>('/projects'),
+  listProjects: () => {
+    if (!isAuthenticated()) return Promise.resolve([]);
+    return request<any[]>('/projects');
+  },
 
   createProject: (payload: { title: string; idea?: string }) =>
     request<any>('/projects', {
@@ -213,6 +224,13 @@ export const api = {
   // Full Atomic Project Sync
   syncFullProject: (projectId: string, data: any) =>
     request<any>(`/projects/${projectId}/sync-full`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  // Lightweight project metadata update with OCC version field
+  updateProject: (projectId: string, data: { title?: string; idea?: string; status?: string; version?: number }) =>
+    request<any>(`/projects/${projectId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),

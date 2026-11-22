@@ -20,7 +20,7 @@ const APIDesigner = () => {
   const yaml = useStore((s) => s.openapiYaml);
   const setOpenapiYaml = useStore((s) => s.setOpenapiYaml);
   const projectName = useStore((s) => s.projectName);
-  const isStale = useStore((s) => s.staleArtifacts.api);
+  const isStale = useStore((s) => s.staleArtifacts?.api);
   const isGenerating = useStore((s) => s.pipeline.running);
   const umlNodes = useStore((s) => s.umlNodes);
   const umlEdges = useStore((s) => s.umlEdges);

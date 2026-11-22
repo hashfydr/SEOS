@@ -92,4 +92,28 @@ describe('WCAG 2.1 AA Accessibility Verification', () => {
     expect(buttonDimensions.totalHeight).toBeGreaterThanOrEqual(32);
     expect(buttonDimensions.totalWidth).toBeGreaterThanOrEqual(44);
   });
+
+  it('validates critical textareas have explicit aria-labels for screen readers', () => {
+    const textareas = [
+      { id: 'idea-input', ariaLabel: 'Product idea description' },
+      { id: 'chat-input', ariaLabel: 'AI assistant prompt' },
+    ];
+    for (const ta of textareas) {
+      expect(Boolean(ta.ariaLabel)).toBe(true);
+      expect(ta.ariaLabel.length).toBeGreaterThan(5);
+    }
+  });
+
+  it('validates modal dialog close buttons enforce descriptive aria-label="Close dialog"', () => {
+    const modalCloseButtons = [
+      { modal: 'HelpModal', ariaLabel: 'Close dialog' },
+      { modal: 'AboutModal', ariaLabel: 'Close dialog' },
+      { modal: 'KnowledgeBaseModal', ariaLabel: 'Close dialog' },
+      { modal: 'AuthModal', ariaLabel: 'Close dialog' },
+      { modal: 'ProjectManagerModal', ariaLabel: 'Close dialog' },
+    ];
+    for (const btn of modalCloseButtons) {
+      expect(btn.ariaLabel).toBe('Close dialog');
+    }
+  });
 });

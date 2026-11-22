@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
-import { api, getAuthToken } from './api';
+import { api, getAuthToken, isAuthenticated } from './api';
 
-export type SyncState = 'offline' | 'idle' | 'syncing' | 'saved' | 'error';
+export type SyncState = 'offline' | 'idle' | 'syncing' | 'saved' | 'error' | 'conflict';
 
 let syncTimeout: any = null;
 let activeBackendProjectId: string | null = null;
@@ -48,7 +48,7 @@ export function useProjectSync() {
 
   // 1. Initial Load: Fetch remote project on login
   useEffect(() => {
-    if (!currentUser || !getAuthToken()) {
+    if (!isAuthenticated() || !currentUser) {
       setSyncState('offline');
       return;
     }
@@ -56,6 +56,10 @@ export function useProjectSync() {
     let isMounted = true;
 
     async function loadOrCreateProject() {
+      if (!isAuthenticated()) {
+        setSyncState('offline');
+        return;
+      }
       try {
         setSyncState('syncing');
         const projects = await api.listProjects();
@@ -202,9 +206,15 @@ export function useProjectSync() {
         }
         setSyncState('saved');
         setLastSaved(new Date());
-      } catch (err) {
-        console.warn('Auto-sync error:', err);
-        setSyncState('error');
+      } catch (err: any) {
+        if (err?.status === 409 || String(err?.message || '').toLowerCase().includes('conflict')) {
+          console.warn('Optimistic concurrency lock conflict (409):', err);
+          setSyncState('conflict');
+          // Do not retry automatically to prevent infinite thrashing loops
+        } else {
+          console.warn('Auto-sync error:', err);
+          setSyncState('error');
+        }
       }
     }, 1500);
 

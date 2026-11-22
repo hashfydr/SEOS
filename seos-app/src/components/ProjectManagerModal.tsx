@@ -87,6 +87,7 @@ export const ProjectManagerModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="text-seos-text-3 hover:text-seos-text p-1 rounded-md text-lg transition-colors cursor-pointer"
           >
             ✕

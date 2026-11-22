@@ -13,7 +13,7 @@ describe('SEOS Zustand Store', () => {
     expect(state.requirements).toEqual([]);
     expect(state.userStories).toEqual([]);
     expect(state.umlNodes).toEqual([]);
-    expect(state.staleArtifacts).toEqual({ api: false, docs: false, architecture: false });
+    expect(state.staleArtifacts).toEqual({ stories: false, model: false, api: false, docs: false, architecture: false });
   });
 
   it('updates project name and idea', () => {
@@ -69,5 +69,36 @@ describe('SEOS Zustand Store', () => {
       { id: 'srs', title: 'SRS', type: 'SRS', content: '# SRS' },
     ]);
     expect(useStore.getState().staleArtifacts.docs).toBe(false);
+  });
+
+  it('marks downstream artifacts stale when upstream requirement is edited or deleted', () => {
+    useStore.getState().addRequirement({
+      id: 'REQ-201',
+      type: 'Functional',
+      priority: 'High',
+      description: 'Original requirement text',
+      status: 'approved',
+    });
+
+    // Clear stale flags
+    useStore.getState().clearStaleArtifacts();
+    expect(useStore.getState().staleArtifacts.stories).toBe(false);
+
+    // Edit requirement description -> triggers transitive staleness
+    useStore.getState().updateRequirement('REQ-201', { description: 'Updated requirement text' });
+    const staleState = useStore.getState().staleArtifacts;
+    expect(staleState.stories).toBe(true);
+    expect(staleState.model).toBe(true);
+    expect(staleState.api).toBe(true);
+    expect(staleState.docs).toBe(true);
+    expect(staleState.architecture).toBe(true);
+
+    // Resolving stories clears stories staleness
+    useStore.getState().setUserStories([]);
+    expect(useStore.getState().staleArtifacts.stories).toBe(false);
+
+    // Resolving UML nodes clears model staleness
+    useStore.getState().setUMLNodes([]);
+    expect(useStore.getState().staleArtifacts.model).toBe(false);
   });
 });

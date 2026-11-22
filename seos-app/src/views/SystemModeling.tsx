@@ -27,6 +27,7 @@ const calculateEdgePath = (sourceNode: UMLNode, targetNode: UMLNode) => {
 export default function SystemModeling() {
   const storeNodes = useStore((s) => s.umlNodes);
   const storeEdges = useStore((s) => s.umlEdges);
+  const isModelStale = useStore((s) => s.staleArtifacts?.model);
   
   const [nodes, setNodes] = useState<UMLNode[]>(storeNodes);
   const [edges, setEdges] = useState(storeEdges);
@@ -253,6 +254,29 @@ export default function SystemModeling() {
     }
   };
 
+  const getTypeBadgeStyle = (typeStr: string) => {
+    const t = (typeStr || '').toUpperCase();
+    if (t === 'UUID') {
+      return 'bg-purple-500/15 text-purple-400 dark:text-purple-300 border-purple-500/30';
+    }
+    if (t === 'DECIMAL' || t === 'NUMERIC' || t === 'FLOAT') {
+      return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+    }
+    if (t === 'INTEGER' || t === 'INT') {
+      return 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30';
+    }
+    if (t === 'TIMESTAMP' || t === 'DATE' || t === 'DATETIME') {
+      return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30';
+    }
+    if (t === 'BOOLEAN' || t === 'BOOL') {
+      return 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30';
+    }
+    if (t.startsWith('VARCHAR') || t === 'STRING' || t === 'TEXT') {
+      return 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30';
+    }
+    return 'bg-seos-surface-3 text-seos-text-3 border-seos-border/50';
+  };
+
   const visibleEdges = edges.filter(e => nodes.some(n => n.id === e.from) && nodes.some(n => n.id === e.to));
 
   return (
@@ -261,6 +285,19 @@ export default function SystemModeling() {
       {syncToast.visible && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-seos-green text-black px-4 py-2 rounded shadow-lg animate-fade-in-down font-medium shadow-seos-green-glow">
           {syncToast.message}
+        </div>
+      )}
+
+      {/* Upstream Staleness Indicator */}
+      {isModelStale && (
+        <div className="absolute top-4 left-6 z-40 bg-seos-amber/15 border border-seos-amber/40 text-seos-amber px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 backdrop-blur-md animate-fade-in">
+          <span>⚠️ <strong>Upstream changes:</strong> Domain requirements updated. Verify entity structure.</span>
+          <button
+            onClick={() => useStore.getState().setStaleArtifacts({ model: false })}
+            className="underline hover:text-seos-text cursor-pointer ml-1 font-semibold"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -362,7 +399,9 @@ export default function SystemModeling() {
                       {field.isFK && <span className="text-xs font-bold text-seos-cyan" title="Foreign Key">FK</span>}
                       <span className="truncate">{field.name}</span>
                     </div>
-                    <span className="text-xs text-seos-text-3 font-mono">{field.type}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold ${getTypeBadgeStyle(field.type)}`}>
+                      {field.type}
+                    </span>
                   </div>
                 ))}
               </div>

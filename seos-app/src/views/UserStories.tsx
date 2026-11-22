@@ -3,6 +3,7 @@ import { useStore } from '../store';
 function UserStories() {
   const stories = useStore((s) => s.userStories);
   const setStories = useStore((s) => s.setUserStories);
+  const isStale = useStore((s) => s.staleArtifacts?.stories);
 
   const handleApprove = (id: string) => {
     setStories(stories.map(s => s.id === id ? { ...s, status: 'approved' as const } : s));
@@ -10,6 +11,22 @@ function UserStories() {
 
   return (
     <div className="flex flex-col h-full bg-seos-bg text-seos-text p-6 overflow-y-auto">
+      {isStale && (
+        <div className="mb-6 p-4 rounded-xl bg-seos-amber/10 border border-seos-amber/30 flex items-center justify-between gap-4 shrink-0 text-sm text-seos-amber animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">⚠️</span>
+            <span>
+              <strong>Upstream changes detected:</strong> Requirements have been modified or rejected. These user stories may need updating.
+            </span>
+          </div>
+          <button
+            onClick={() => useStore.getState().setStaleArtifacts({ stories: false })}
+            className="px-3 py-1 rounded-md text-xs font-medium bg-seos-amber/20 hover:bg-seos-amber/30 border border-seos-amber/40 transition-colors text-seos-amber shrink-0 cursor-pointer"
+          >
+            Acknowledge
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-display text-3xl font-medium tracking-tight text-seos-text">User Stories Board</h1>
         <div className="bg-seos-surface-3 px-3 py-1 rounded-full text-seos-text-2 font-medium">

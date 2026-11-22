@@ -57,20 +57,25 @@ const ProjectOverview: React.FC = () => {
 
   // ─── Derived project facts ───
   const facts = useMemo(() => {
-    const approvedReqs = requirements.filter((r) => r.status === 'approved').length;
-    const approvedStories = userStories.filter((s) => s.status === 'approved').length;
-    const paths = (openapiYaml.match(/^\s{2}\/\S*:\s*$/gm) || []).length;
-    const operations = (openapiYaml.match(/^\s{4}(get|post|put|patch|delete):/gm) || []).length;
+    const safeReqs = requirements || [];
+    const safeStories = userStories || [];
+    const safeYaml = openapiYaml || '';
+    const safeComponents = architecture?.components || [];
 
-    const reqIds = new Set(requirements.map((r) => r.id));
-    const coveredReqIds = new Set(userStories.map((s) => s.reqId).filter((id) => reqIds.has(id)));
-    const uncovered = requirements.filter((r) => !coveredReqIds.has(r.id));
-    const orphanStories = userStories.filter((s) => !reqIds.has(s.reqId));
+    const approvedReqs = safeReqs.filter((r) => r.status === 'approved').length;
+    const approvedStories = safeStories.filter((s) => s.status === 'approved').length;
+    const paths = (safeYaml.match(/^\s{2}\/\S*:\s*$/gm) || []).length;
+    const operations = (safeYaml.match(/^\s{4}(get|post|put|patch|delete):/gm) || []).length;
+
+    const reqIds = new Set(safeReqs.map((r) => r.id));
+    const coveredReqIds = new Set(safeStories.map((s) => s.reqId).filter((id) => id && reqIds.has(id)));
+    const uncovered = safeReqs.filter((r) => !coveredReqIds.has(r.id));
+    const orphanStories = safeStories.filter((s) => !s.reqId || !reqIds.has(s.reqId));
 
     const techStack = Array.from(
       new Set(
-        architecture.components
-          .flatMap((c) => c.tech.split(/\s*[+/,]\s*/))
+        safeComponents
+          .flatMap((c) => (c && c.tech ? c.tech.split(/\s*[+/,]\s*/) : []))
           .map((t) => t.trim())
           .filter(Boolean),
       ),
