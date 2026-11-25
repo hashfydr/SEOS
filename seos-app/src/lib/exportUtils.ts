@@ -169,6 +169,15 @@ export function exportProjectAsMarkdown(): void {
   URL.revokeObjectURL(url);
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /**
  * Formats a clean print-ready stylesheet and triggers the browser Print dialog to save as PDF.
  */
@@ -176,15 +185,16 @@ export function exportProjectAsPDF(): void {
   const s = useStore.getState();
   const mdContent = generateIEEE830Markdown();
 
-  // Create an isolated printable iframe
+  // Create an isolated printable popup
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
     alert('Please allow popups to export PDF.');
     return;
   }
 
-  // Convert basic Markdown to readable HTML for print
-  const htmlContent = mdContent
+  // Escape HTML first to prevent XSS in printable output, then convert basic Markdown
+  const safeMd = escapeHtml(mdContent);
+  const htmlContent = safeMd
     .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold border-b pb-2 mb-4">$1</h1>')
     .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-6 mb-3 border-b pb-1">$1</h2>')
     .replace(/^### (.*$)/gim, '<h3 class="text-base font-bold mt-4 mb-2">$1</h3>')
@@ -199,7 +209,7 @@ export function exportProjectAsPDF(): void {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>${s.projectName} — SRS Specification</title>
+        <title>${escapeHtml(s.projectName)} — SRS Specification</title>
         <style>
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -224,14 +234,11 @@ export function exportProjectAsPDF(): void {
       </head>
       <body>
         ${htmlContent}
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() { window.close(); };
-          };
-        </script>
       </body>
     </html>
   `);
   printWindow.document.close();
+  printWindow.onafterprint = () => printWindow.close();
+  printWindow.focus();
+  printWindow.print();
 }

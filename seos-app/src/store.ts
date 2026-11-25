@@ -374,6 +374,7 @@ export const useStore = create<SEOSState>()(
       setAuthModalOpen: (open) => set({ authModalOpen: open }),
       logout: () => {
         setAuthToken(null);
+        get().resetProject();
         set({ currentUser: null });
       },
 

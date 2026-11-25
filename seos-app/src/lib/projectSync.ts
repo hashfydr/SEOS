@@ -45,12 +45,30 @@ export function useProjectSync() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const initialLoadDone = useRef(false);
   const projectVersionRef = useRef<number>(1);
+  const lastUserIdRef = useRef<string | null>(null);
 
   // 1. Initial Load: Fetch remote project on login
   useEffect(() => {
+    if (syncTimeout) {
+      clearTimeout(syncTimeout);
+      syncTimeout = null;
+    }
+
     if (!isAuthenticated() || !currentUser) {
+      activeBackendProjectId = null;
+      initialLoadDone.current = false;
+      projectVersionRef.current = 1;
+      lastUserIdRef.current = null;
       setSyncState('offline');
       return;
+    }
+
+    if (lastUserIdRef.current !== currentUser.id) {
+      activeBackendProjectId = null;
+      initialLoadDone.current = false;
+      projectVersionRef.current = 1;
+      useStore.getState().resetProject();
+      lastUserIdRef.current = currentUser.id;
     }
 
     let isMounted = true;
@@ -67,76 +85,73 @@ export function useProjectSync() {
         if (!isMounted) return;
 
         if (projects && projects.length > 0) {
-          // Load most recent project from backend
+          // Load most recent project from backend and hydrate all layers unconditionally
           const remote = projects[0];
           activeBackendProjectId = remote.id;
-          if (remote.version) projectVersionRef.current = remote.version;
+          projectVersionRef.current = remote.version || 1;
 
-          if (remote.title) setProjectName(remote.title);
-          if (remote.idea) setProductIdea(remote.idea);
+          setProjectName(remote.title || 'New Project');
+          setProductIdea(remote.idea || '');
 
-          if (remote.requirements && remote.requirements.length > 0) {
-            setRequirements(
-              remote.requirements.map((r: any) => ({
-                id: r.req_code || r.id,
-                type: r.req_type || 'Functional',
-                priority: r.priority || 'Medium',
-                description: r.description || '',
-                status: r.status || 'draft',
-              }))
-            );
-          }
+          setRequirements(
+            (remote.requirements || []).map((r: any) => ({
+              id: r.req_code || r.id,
+              type: r.req_type || 'Functional',
+              priority: r.priority || 'Medium',
+              description: r.description || '',
+              status: r.status || 'draft',
+            }))
+          );
 
-          if (remote.user_stories && remote.user_stories.length > 0) {
-            setUserStories(
-              remote.user_stories.map((s: any) => ({
-                id: s.id,
-                role: s.role || 'User',
-                action: s.action || '',
-                benefit: s.benefit || '',
-                criteria: s.criteria || [],
-                status: s.status || 'draft',
-                reqId: s.req_id,
-              }))
-            );
-          }
+          setUserStories(
+            (remote.user_stories || []).map((s: any) => ({
+              id: s.id,
+              role: s.role || 'User',
+              action: s.action || '',
+              benefit: s.benefit || '',
+              criteria: s.criteria || [],
+              status: s.status || 'draft',
+              reqId: s.req_id,
+            }))
+          );
 
-          if (remote.diagram) {
-            if (remote.diagram.nodes_data) setUMLNodes(remote.diagram.nodes_data);
-            if (remote.diagram.edges_data) setUMLEdges(remote.diagram.edges_data);
-          }
+          setUMLNodes(remote.diagram?.nodes_data || []);
+          setUMLEdges(remote.diagram?.edges_data || []);
 
-          if (remote.architecture && remote.architecture.pattern) {
-            setArchitecture({
-              pattern: remote.architecture.pattern,
-              rationale: remote.architecture.rationale || '',
-              components: remote.architecture.components || [],
-              tradeoffs: remote.architecture.tradeoffs || [],
-              citations: remote.architecture.citations || [],
-            });
-          }
+          setArchitecture(
+            remote.architecture && remote.architecture.pattern
+              ? {
+                  pattern: remote.architecture.pattern,
+                  rationale: remote.architecture.rationale || '',
+                  components: remote.architecture.components || [],
+                  tradeoffs: remote.architecture.tradeoffs || [],
+                  citations: remote.architecture.citations || [],
+                }
+              : {
+                  pattern: 'None',
+                  rationale: 'Provide a project idea to get architecture recommendations.',
+                  components: [],
+                  tradeoffs: [],
+                }
+          );
 
-          if (remote.api_spec && remote.api_spec.openapi_yaml) {
-            setOpenapiYaml(remote.api_spec.openapi_yaml);
-          }
+          setOpenapiYaml(remote.api_spec?.openapi_yaml || '');
 
-          if (remote.documents && remote.documents.length > 0) {
-            setDocs(
-              remote.documents.map((d: any) => ({
-                type: d.doc_type || 'SRS',
-                title: d.title || 'Document',
-                content: d.content || '',
-              }))
-            );
-          }
+          setDocs(
+            (remote.documents || []).map((d: any) => ({
+              type: d.doc_type || 'SRS',
+              title: d.title || 'Document',
+              content: d.content || '',
+            }))
+          );
         } else {
-          // User has no projects on backend yet: create initial one
+          // User has no projects on backend yet: create a clean initial one
           const created = await api.createProject({
-            title: projectName || 'SEOS Project',
-            idea: productIdea || '',
+            title: 'New Project',
+            idea: '',
           });
           activeBackendProjectId = created.id;
-          if (created.version) projectVersionRef.current = created.version;
+          projectVersionRef.current = created.version || 1;
         }
 
         setSyncState('saved');
@@ -152,6 +167,10 @@ export function useProjectSync() {
 
     return () => {
       isMounted = false;
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
+        syncTimeout = null;
+      }
     };
   }, [currentUser]);
 
