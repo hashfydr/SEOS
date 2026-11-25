@@ -497,7 +497,6 @@ export const LearningDashboard: React.FC = () => {
   const architecture = useStore((s) => s.architecture);
   const openapiYaml = useStore((s) => s.openapiYaml);
   const docs = useStore((s) => s.docs);
-  const currentUser = useStore((s) => s.currentUser);
   const staleArtifacts = useStore((s) => s.staleArtifacts);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'requirements' | 'modeling_api' | 'literature'>('overview');
@@ -775,11 +774,6 @@ export const LearningDashboard: React.FC = () => {
             <span className="text-seos-text-3">
               Project: <strong className="text-seos-text">{projectName}</strong>
             </span>
-            {currentUser?.classroom_code && (
-              <span className="text-seos-text-3">
-                &bull; Cohort: <strong className="text-seos-green">{currentUser.classroom_code}</strong>
-              </span>
-            )}
           </div>
           <h1 className="font-display text-3xl font-medium tracking-tight">
             Learning Dashboard

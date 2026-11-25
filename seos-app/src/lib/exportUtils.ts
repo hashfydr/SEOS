@@ -18,8 +18,7 @@ export function generateIEEE830Markdown(): string {
 **Project Title:** ${s.projectName}  
 **Date of Specification:** ${dateStr}  
 **Specification Standard:** IEEE 830 / ISO/IEC/IEEE 29148  
-**Author / Engineering Cohort:** ${s.currentUser ? `${s.currentUser.name} (${s.currentUser.role.toUpperCase()})` : 'SEOS Engineering Team'}  
-${s.currentUser?.classroom_code ? `**Classroom / Cohort Code:** ${s.currentUser.classroom_code}\n` : ''}
+**Author / Engineering Team:** ${s.currentUser ? s.currentUser.name : 'SEOS Engineering Team'}  
 ---
 
 ## 1. Project Overview & Vision

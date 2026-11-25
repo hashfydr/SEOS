@@ -172,7 +172,7 @@ export async function sendChatMessage(userMessage: string): Promise<ChatResponse
   const relevantChunks = retrieveRelevantKnowledge(query, 2);
   const citations = [...relevantChunks.map((c) => c.citation)];
 
-  // Live RAG Grounding: Query FastAPI backend for mentor course materials and user-uploaded documents
+  // Live RAG Grounding: Query FastAPI backend for uploaded reference materials and documents
   try {
     const remoteMatches = await api.searchKnowledge(userMessage, 3);
     if (remoteMatches && remoteMatches.length > 0) {

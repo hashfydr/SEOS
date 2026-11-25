@@ -21,7 +21,6 @@ const VIEW_TITLES: Record<ViewId, string> = {
   'api-designer': 'API Designer',
   documentation: 'Documentation',
   learning: 'Learning Dashboard',
-  'mentor-roster': 'Cohort Roster',
   settings: 'Settings & Control Center',
 };
 

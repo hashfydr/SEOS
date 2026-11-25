@@ -10,7 +10,6 @@ const Architecture = lazy(() => import('../views/Architecture'));
 const APIDesigner = lazy(() => import('../views/APIDesigner'));
 const Documentation = lazy(() => import('../views/Documentation'));
 const LearningDashboard = lazy(() => import('../views/LearningDashboard'));
-const MentorRoster = lazy(() => import('../views/MentorRoster'));
 const Settings = lazy(() => import('../views/Settings'));
 
 interface Props {
@@ -40,7 +39,6 @@ const VIEW_MAP: Record<ViewId, React.ComponentType<any>> = {
   'api-designer': APIDesigner,
   documentation: Documentation,
   learning: LearningDashboard,
-  'mentor-roster': MentorRoster,
   settings: Settings,
 };
 

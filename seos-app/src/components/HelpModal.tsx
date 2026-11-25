@@ -129,7 +129,7 @@ const HELP_ARTICLES: HelpArticle[] = [
       'Q: What browsers are supported?',
       'A: SEOS is optimized for modern Chromium (Google Chrome, Microsoft Edge, Brave) and Firefox on Linux, macOS, and Windows.',
       'Q: How do I report an issue?',
-      'A: Contact your course instructor/mentor or submit an issue via the academic repository tracker with the diagnostic error payload.',
+      'A: Submit an issue via the repository issue tracker with the diagnostic error payload.',
     ],
   },
 ];
@@ -275,7 +275,7 @@ export const HelpModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-seos-border bg-seos-surface-2/40 flex justify-between items-center text-xs font-mono">
-          <span className="text-seos-text-3">Need institutional guidance? Contact your faculty mentor.</span>
+          <span className="text-seos-text-3">Need technical assistance? Check the documentation or open an issue.</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded bg-seos-accent text-white hover:bg-seos-accent-2 transition-colors cursor-pointer font-semibold"

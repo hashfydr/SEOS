@@ -8,7 +8,6 @@ export type ViewId =
   | 'api-designer'
   | 'documentation'
   | 'learning'
-  | 'mentor-roster'
   | 'settings';
 
 export interface NavItem {
