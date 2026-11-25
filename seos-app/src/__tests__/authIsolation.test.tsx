@@ -141,6 +141,54 @@ describe('Cross-Account & Session Isolation', () => {
     expect((container.querySelector('#auth-password') as HTMLInputElement).value).toBe('');
   });
 
+  it('auto-closes AuthModal after registration and demo login even across parent re-renders', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(api, 'register').mockImplementation(async (payload) => ({
+        id: `id-${payload.email}`,
+        name: payload.name,
+        email: payload.email,
+        role: payload.role,
+        created_at: '2026-11-25T10:00:00Z',
+      }));
+      vi.spyOn(api, 'login').mockResolvedValue({
+        access_token: 'demo-jwt',
+        token_type: 'bearer',
+        role: 'solo_dev',
+        name: 'Demo Engineer',
+      });
+
+      container = document.createElement('div');
+      document.body.appendChild(container);
+      root = createRoot(container);
+
+      useStore.getState().setAuthModalOpen(true);
+      await act(async () => {
+        root?.render(<AuthModal />);
+      });
+
+      const demoBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('[SIGN IN AS DEMO DEVELOPER]')
+      );
+      await act(async () => {
+        demoBtn?.click();
+      });
+
+      // Simulate parent re-render right after auth state updates
+      await act(async () => {
+        root?.render(<AuthModal />);
+      });
+      expect(useStore.getState().authModalOpen).toBe(true);
+
+      await act(async () => {
+        vi.advanceTimersByTime(900);
+      });
+      expect(useStore.getState().authModalOpen).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('provisions isolated ephemeral demo users instead of shared demo.developer@seos.dev', async () => {
     const registerSpy = vi.spyOn(api, 'register').mockImplementation(async (payload) => ({
       id: `demo-${payload.email}`,

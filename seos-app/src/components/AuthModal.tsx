@@ -28,11 +28,10 @@ const AuthDialogContent: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      clearCloseTimer();
-    };
-  }, [onClose, clearCloseTimer]);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
   const scheduleClose = (delayMs: number) => {
     clearCloseTimer();
@@ -262,9 +261,10 @@ const AuthDialogContent: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 export const AuthModal: React.FC = () => {
   const isOpen = useStore((s) => s.authModalOpen);
   const setOpen = useStore((s) => s.setAuthModalOpen);
+  const handleClose = useCallback(() => setOpen(false), [setOpen]);
 
   if (!isOpen) return null;
-  return <AuthDialogContent onClose={() => setOpen(false)} />;
+  return <AuthDialogContent onClose={handleClose} />;
 };
 
 export default AuthModal;
