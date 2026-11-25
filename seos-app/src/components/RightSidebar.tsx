@@ -651,7 +651,7 @@ How would you like to proceed with the engineering pipeline?`;
                     ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
                     : 'bg-seos-cyan/15 text-seos-cyan border-seos-cyan/30'
                 }`}>
-                  {hasKey ? '[Memory Key Connected]' : '[Awaiting Key]'}
+                  {hasKey ? '[API Key Active]' : '[No API Key]'}
                 </span>
               </div>
 

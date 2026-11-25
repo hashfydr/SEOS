@@ -5,34 +5,67 @@ import type { UserProfile } from './lib/api';
 import { setAuthToken } from './lib/api';
 import { detectApiKeyProvider, sanitizeApiKey, type DetectedApiKey } from './lib/apiKeyDetector';
 
-const SESSION_KEYS_STORAGE_KEY = 'seos-session-keys';
+export const API_KEYS_LOCAL_STORAGE_KEY = 'seos-api-keys';
+export const SESSION_KEYS_STORAGE_KEY = 'seos-session-keys';
 
-function getInitialApiKeys(): APIKeys {
+export function getInitialApiKeys(): APIKeys {
   const empty: APIKeys = { openai: '', gemini: '', anthropic: '', groq: '', nvidia: '' };
-  if (typeof window === 'undefined' || !window.sessionStorage) return empty;
+  if (typeof window === 'undefined') return empty;
   try {
-    const raw = sessionStorage.getItem(SESSION_KEYS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...empty, ...parsed };
+    // 1. Check persistent localStorage first (persists across browser close & reopen)
+    if (window.localStorage) {
+      const localRaw = localStorage.getItem(API_KEYS_LOCAL_STORAGE_KEY);
+      if (localRaw) {
+        const parsed = JSON.parse(localRaw);
+        return { ...empty, ...parsed };
+      }
+    }
+    // 2. Fallback to sessionStorage (session-only mode)
+    if (window.sessionStorage) {
+      const sessionRaw = sessionStorage.getItem(SESSION_KEYS_STORAGE_KEY);
+      if (sessionRaw) {
+        const parsed = JSON.parse(sessionRaw);
+        return { ...empty, ...parsed };
+      }
     }
   } catch {
-    // sessionStorage unavailable
+    // Storage restricted or unavailable
   }
   return empty;
 }
 
-function persistApiKeysToSession(keys: APIKeys, enabled: boolean = true) {
-  if (typeof window === 'undefined' || !window.sessionStorage) return;
+export function persistApiKeys(keys: APIKeys, rememberOnDevice: boolean = true) {
+  if (typeof window === 'undefined') return;
+  const hasAnyKey = Object.values(keys).some((k) => typeof k === 'string' && k.trim().length > 0);
   try {
-    if (enabled) {
+    if (!hasAnyKey) {
+      if (window.localStorage) localStorage.removeItem(API_KEYS_LOCAL_STORAGE_KEY);
+      if (window.sessionStorage) sessionStorage.removeItem(SESSION_KEYS_STORAGE_KEY);
+      return;
+    }
+
+    // Mirror to sessionStorage for backward compatibility with active session readers
+    if (window.sessionStorage) {
       sessionStorage.setItem(SESSION_KEYS_STORAGE_KEY, JSON.stringify(keys));
+    }
+
+    if (rememberOnDevice) {
+      if (window.localStorage) {
+        localStorage.setItem(API_KEYS_LOCAL_STORAGE_KEY, JSON.stringify(keys));
+      }
     } else {
-      sessionStorage.removeItem(SESSION_KEYS_STORAGE_KEY);
+      if (window.localStorage) {
+        localStorage.removeItem(API_KEYS_LOCAL_STORAGE_KEY);
+      }
     }
   } catch {
     // ignore
   }
+}
+
+// Backward-compatible alias for existing callers
+export function persistApiKeysToSession(keys: APIKeys, enabled: boolean = true) {
+  persistApiKeys(keys, enabled);
 }
 
 
@@ -85,6 +118,7 @@ export const DEFAULT_SETTINGS: SEOSSettingsState = {
     retryCount: 2,
     fallbackProvider: 'openai',
     sessionKeyPersistence: true,
+    rememberApiKeyOnDevice: true,
   },
   pipeline: {
     enabledStages: ['requirements', 'stories', 'model', 'architecture', 'api', 'docs'],
@@ -273,6 +307,8 @@ interface SEOSState {
 
   // === Actions — Settings ===
   setApiKey: (provider: LLMProvider, key: string) => void;
+  clearApiKey: (provider?: LLMProvider) => void;
+  clearAllApiKeys: () => void;
   autoSetApiKey: (rawKey: string, detectedOverride?: DetectedApiKey) => DetectedApiKey | null;
   setSelectedProvider: (provider: LLMProvider) => void;
   toggleTheme: () => void;
@@ -359,8 +395,11 @@ export const useStore = create<SEOSState>()(
           if (category === 'ai' && (patch as any).provider) {
             extraPatch.selectedProvider = (patch as any).provider;
           }
-          if (category === 'ai' && (patch as any).sessionKeyPersistence !== undefined) {
-            persistApiKeysToSession(s.apiKeys, (patch as any).sessionKeyPersistence);
+          if (category === 'ai' && ((patch as any).rememberApiKeyOnDevice !== undefined || (patch as any).sessionKeyPersistence !== undefined)) {
+            const remember = (patch as any).rememberApiKeyOnDevice !== undefined
+              ? (patch as any).rememberApiKeyOnDevice !== false
+              : (patch as any).sessionKeyPersistence !== false;
+            persistApiKeys(s.apiKeys, remember);
           }
           return { settings: nextSettings, ...extraPatch };
         }),
@@ -435,8 +474,26 @@ export const useStore = create<SEOSState>()(
         set((s) => {
           const sanitized = sanitizeApiKey(key);
           const nextKeys = { ...s.apiKeys, [provider]: sanitized };
-          const persistEnabled = s.settings.ai.sessionKeyPersistence !== false;
-          persistApiKeysToSession(nextKeys, persistEnabled);
+          const remember = s.settings.ai.rememberApiKeyOnDevice !== false && s.settings.ai.sessionKeyPersistence !== false;
+          persistApiKeys(nextKeys, remember);
+          return { apiKeys: nextKeys };
+        }),
+      clearApiKey: (provider) =>
+        set((s) => {
+          let nextKeys: APIKeys;
+          if (provider) {
+            nextKeys = { ...s.apiKeys, [provider]: '' };
+          } else {
+            nextKeys = { openai: '', gemini: '', anthropic: '', groq: '', nvidia: '' };
+          }
+          const remember = s.settings.ai.rememberApiKeyOnDevice !== false && s.settings.ai.sessionKeyPersistence !== false;
+          persistApiKeys(nextKeys, remember);
+          return { apiKeys: nextKeys };
+        }),
+      clearAllApiKeys: () =>
+        set(() => {
+          const nextKeys = { openai: '', gemini: '', anthropic: '', groq: '', nvidia: '' };
+          persistApiKeys(nextKeys, false);
           return { apiKeys: nextKeys };
         }),
       autoSetApiKey: (rawKey: string, detectedOverride?: DetectedApiKey) => {
@@ -446,8 +503,8 @@ export const useStore = create<SEOSState>()(
         const { provider, defaultModel } = detected;
         set((s) => {
           const nextKeys = { ...s.apiKeys, [provider]: sanitized };
-          const persistEnabled = s.settings.ai.sessionKeyPersistence !== false;
-          persistApiKeysToSession(nextKeys, persistEnabled);
+          const remember = s.settings.ai.rememberApiKeyOnDevice !== false && s.settings.ai.sessionKeyPersistence !== false;
+          persistApiKeys(nextKeys, remember);
           return {
             apiKeys: nextKeys,
             selectedProvider: provider,
@@ -506,8 +563,6 @@ export const useStore = create<SEOSState>()(
     }),
     {
       name: 'seos-storage-v2',
-      // Security Hardening (Gate 1): Provider API keys are strictly memory-only
-      // and NOT persisted into localStorage to prevent XSS / local exfiltration.
       partialize: (state) => ({
         projectName: state.projectName,
         productIdea: state.productIdea,
@@ -520,11 +575,33 @@ export const useStore = create<SEOSState>()(
         architecture: state.architecture,
         staleArtifacts: state.staleArtifacts,
         selectedProvider: state.selectedProvider,
+        activeModel: state.activeModel,
         messages: state.messages,
         theme: state.theme,
         currentUser: state.currentUser,
         settings: state.settings,
+        apiKeys: (state.settings.ai.rememberApiKeyOnDevice !== false && state.settings.ai.sessionKeyPersistence !== false)
+          ? state.apiKeys
+          : { openai: '', gemini: '', anthropic: '', groq: '', nvidia: '' },
       }),
+      onRehydrateStorage: () => (state, error) => {
+        if (!error && state) {
+          // Rehydrate API keys from persistent localStorage if store's apiKeys is missing or empty
+          const hasKeys = Object.values(state.apiKeys || {}).some((k) => typeof k === 'string' && k.trim().length > 0);
+          if (!hasKeys) {
+            const initialKeys = getInitialApiKeys();
+            if (Object.values(initialKeys).some((k) => typeof k === 'string' && k.trim().length > 0)) {
+              state.apiKeys = initialKeys;
+            }
+          }
+          if (state.settings?.ai?.provider && !state.selectedProvider) {
+            state.selectedProvider = state.settings.ai.provider;
+          }
+          if (state.settings?.ai?.model && !state.activeModel) {
+            state.activeModel = state.settings.ai.model;
+          }
+        }
+      },
     },
   ),
 );

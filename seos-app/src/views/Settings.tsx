@@ -46,6 +46,8 @@ export default function SettingsView() {
   const resetAllSettings = useStore((s) => s.resetAllSettings);
   const apiKeys = useStore((s) => s.apiKeys);
   const setApiKey = useStore((s) => s.setApiKey);
+  const clearApiKey = useStore((s) => s.clearApiKey);
+  const clearAllApiKeys = useStore((s) => s.clearAllApiKeys);
   const selectedProvider = useStore((s) => s.selectedProvider);
   const setSelectedProvider = useStore((s) => s.setSelectedProvider);
   const projectName = useStore((s) => s.projectName);
@@ -71,7 +73,6 @@ export default function SettingsView() {
 
   const activeProvider = selectedProvider || settings.ai.provider;
   const currentKeyForActive = apiKeys[activeProvider]?.trim();
-  const sessionPersistenceActive = settings.ai.sessionKeyPersistence !== false;
 
   // Active saved keys list
   const savedKeysList = (Object.keys(PROVIDER_INFO) as LLMProvider[]).filter(
@@ -118,7 +119,7 @@ export default function SettingsView() {
   };
 
   const handleRemoveKey = (p: LLMProvider) => {
-    setApiKey(p, '');
+    clearApiKey(p);
     triggerToast(`[REMOVED] ${PROVIDER_INFO[p].name} key deleted`);
     // If we removed the active key, switch to another saved key if available
     const remaining = savedKeysList.filter((k) => k !== p);
@@ -128,6 +129,14 @@ export default function SettingsView() {
       setSelectedProvider('gemini');
       updateSettings('ai', { provider: 'gemini' });
     }
+  };
+
+  const handleClearAllKeys = () => {
+    clearAllApiKeys();
+    setSelectedProvider('gemini');
+    updateSettings('ai', { provider: 'gemini' });
+    setTestStatus(null);
+    triggerToast('[CLEARED] All saved API keys wiped from browser storage');
   };
 
   const handleTestConnection = async () => {
@@ -289,13 +298,24 @@ export default function SettingsView() {
                     </div>
                   </div>
 
-                  <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
-                    currentKeyForActive
-                      ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
-                      : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
-                  }`}>
-                    {currentKeyForActive ? '[KEY ACTIVE]' : '[PROXY FALLBACK]'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {currentKeyForActive && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveKey(activeProvider)}
+                        className="px-2.5 py-1 text-xs font-mono rounded border border-seos-red/40 text-seos-red hover:bg-seos-red/10 transition-colors cursor-pointer"
+                      >
+                        [CLEAR SAVED KEY]
+                      </button>
+                    )}
+                    <span className={`text-[10px] px-2.5 py-1 rounded border font-bold ${
+                      currentKeyForActive
+                        ? 'bg-seos-green/15 text-seos-green border-seos-green/30'
+                        : 'bg-seos-surface-2 text-seos-text-3 border-seos-border'
+                    }`}>
+                      {currentKeyForActive ? '[KEY ACTIVE]' : '[PROXY FALLBACK]'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="pt-2 border-t border-seos-border/50">
@@ -380,9 +400,18 @@ export default function SettingsView() {
                       [SAVED API KEYS ({savedKeysList.length})]
                     </h2>
                     <p className="text-[11px] text-seos-text-3 mt-0.5">
-                      All added keys are kept safely in memory. Click [USE KEY] to switch active provider anytime.
+                      All added keys are kept safely in your browser. Click [USE THIS KEY] to switch active provider anytime.
                     </p>
                   </div>
+                  {savedKeysList.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllKeys}
+                      className="px-2.5 py-1 text-[10px] font-bold rounded border border-seos-red/40 text-seos-red hover:bg-seos-red/10 transition-colors cursor-pointer"
+                    >
+                      [CLEAR ALL KEYS]
+                    </button>
+                  )}
                 </div>
 
                 {savedKeysList.length === 0 ? (
@@ -431,7 +460,7 @@ export default function SettingsView() {
                               onClick={() => handleRemoveKey(p)}
                               className="px-2 py-1 text-[10px] rounded border border-seos-red/30 text-seos-red hover:bg-seos-red/10 transition-colors cursor-pointer"
                             >
-                              [REMOVE]
+                              [CLEAR SAVED KEY]
                             </button>
                           </div>
                         </div>
@@ -440,19 +469,23 @@ export default function SettingsView() {
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-seos-border/50">
+                <div className="pt-2 border-t border-seos-border/50 space-y-1">
                   <label className="flex items-center gap-2 cursor-pointer text-[11px] text-seos-text-2">
                     <input
                       type="checkbox"
-                      checked={sessionPersistenceActive}
+                      checked={settings.ai.rememberApiKeyOnDevice !== false}
                       onChange={(e) => {
-                        updateSettings('ai', { sessionKeyPersistence: e.target.checked });
-                        triggerToast(`Session persistence ${e.target.checked ? 'enabled' : 'disabled'}`);
+                        const remember = e.target.checked;
+                        updateSettings('ai', { rememberApiKeyOnDevice: remember, sessionKeyPersistence: remember });
+                        triggerToast(`Device persistence ${remember ? 'enabled (saved in localStorage across sessions)' : 'disabled (session-only storage)'}`);
                       }}
                       className="rounded border-seos-border accent-seos-accent focus:ring-0 cursor-pointer"
                     />
-                    <span>Keep keys active across tab reloads (stored in temporary sessionStorage; cleared on browser close)</span>
+                    <span className="font-semibold text-seos-text">Remember API key on this device</span>
                   </label>
+                  <p className="text-[10px] text-seos-text-3 font-mono pl-5">
+                    🔒 Stored locally in your browser only — never sent to SEOS servers. Uncheck on shared/lab PCs for session-only storage.
+                  </p>
                 </div>
               </div>
             </div>

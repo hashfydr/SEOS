@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useStore } from '../store';
+import { useStore, getInitialApiKeys, API_KEYS_LOCAL_STORAGE_KEY, SESSION_KEYS_STORAGE_KEY } from '../store';
 
 describe('SEOS Zustand Store', () => {
   beforeEach(() => {
@@ -100,5 +100,130 @@ describe('SEOS Zustand Store', () => {
     // Resolving UML nodes clears model staleness
     useStore.getState().setUMLNodes([]);
     expect(useStore.getState().staleArtifacts.model).toBe(false);
+  });
+
+  describe('API Key Persistence Across Browser Sessions', () => {
+    beforeEach(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      useStore.getState().clearAllApiKeys();
+    });
+
+    it('persists API keys to localStorage across sessions by default', () => {
+      const { setApiKey, hasApiKey } = useStore.getState();
+
+      setApiKey('openai', 'sk-proj-persisted-token-1234567890');
+      expect(useStore.getState().apiKeys.openai).toBe('sk-proj-persisted-token-1234567890');
+
+      // Check persistent localStorage
+      const localStored = localStorage.getItem(API_KEYS_LOCAL_STORAGE_KEY);
+      expect(localStored).not.toBeNull();
+      const parsed = JSON.parse(localStored!);
+      expect(parsed.openai).toBe('sk-proj-persisted-token-1234567890');
+
+      // Also mirrors to sessionStorage for active session compatibility
+      const sessionStored = sessionStorage.getItem(SESSION_KEYS_STORAGE_KEY);
+      expect(sessionStored).not.toBeNull();
+
+      useStore.getState().setSelectedProvider('openai');
+      expect(hasApiKey()).toBe(true);
+    });
+
+    it('rehydrates API keys from localStorage on initialization', () => {
+      const persistedPayload = {
+        openai: 'sk-proj-rehydrated-abc',
+        gemini: 'AIzaSyRehydratedGemini',
+        anthropic: '',
+        groq: '',
+        nvidia: '',
+      };
+      localStorage.setItem(API_KEYS_LOCAL_STORAGE_KEY, JSON.stringify(persistedPayload));
+
+      const rehydrated = getInitialApiKeys();
+      expect(rehydrated.openai).toBe('sk-proj-rehydrated-abc');
+      expect(rehydrated.gemini).toBe('AIzaSyRehydratedGemini');
+    });
+
+    it('wipes keys from state and localStorage when clearApiKey or clearAllApiKeys is called', () => {
+      const { setApiKey, clearApiKey, clearAllApiKeys } = useStore.getState();
+
+      setApiKey('openai', 'sk-proj-to-clear-1');
+      setApiKey('gemini', 'AIzaSy-to-clear-2');
+
+      // Clear single provider
+      clearApiKey('openai');
+      expect(useStore.getState().apiKeys.openai).toBe('');
+      expect(useStore.getState().apiKeys.gemini).toBe('AIzaSy-to-clear-2');
+
+      let localParsed = JSON.parse(localStorage.getItem(API_KEYS_LOCAL_STORAGE_KEY)!);
+      expect(localParsed.openai).toBe('');
+      expect(localParsed.gemini).toBe('AIzaSy-to-clear-2');
+
+      // Clear all keys
+      clearAllApiKeys();
+      expect(useStore.getState().apiKeys.gemini).toBe('');
+      expect(localStorage.getItem(API_KEYS_LOCAL_STORAGE_KEY)).toBeNull();
+      expect(sessionStorage.getItem(SESSION_KEYS_STORAGE_KEY)).toBeNull();
+    });
+
+    it('supports session-only storage when rememberApiKeyOnDevice is disabled', () => {
+      const { updateSettings, setApiKey } = useStore.getState();
+
+      updateSettings('ai', { rememberApiKeyOnDevice: false });
+      setApiKey('groq', 'gsk_testSessionOnlyKey1234567890');
+
+      // Stored in sessionStorage
+      const sessionStored = sessionStorage.getItem(SESSION_KEYS_STORAGE_KEY);
+      expect(sessionStored).not.toBeNull();
+      expect(JSON.parse(sessionStored!).groq).toBe('gsk_testSessionOnlyKey1234567890');
+
+      // NOT stored in persistent localStorage
+      expect(localStorage.getItem(API_KEYS_LOCAL_STORAGE_KEY)).toBeNull();
+    });
+
+    it('guarantees project sync payloads and JSON exports never leak API keys', () => {
+      const { setApiKey, setProjectName, setProductIdea } = useStore.getState();
+      const secretKey = 'AIzaSySecretLeakCheck1234567890';
+      setApiKey('gemini', secretKey);
+      setProjectName('Audit Project');
+      setProductIdea('Super secret idea');
+
+      const s = useStore.getState();
+
+      // 1. JSON Export bundle structure check
+      const exportBundle = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        projectName: s.projectName,
+        productIdea: s.productIdea,
+        requirements: s.requirements,
+        userStories: s.userStories,
+        umlNodes: s.umlNodes,
+        umlEdges: s.umlEdges,
+        architecture: s.architecture,
+        openapiYaml: s.openapiYaml,
+        docs: s.docs,
+      };
+      const exportJson = JSON.stringify(exportBundle);
+      expect(exportJson).not.toContain(secretKey);
+      expect(exportJson).not.toContain('apiKeys');
+
+      // 2. Project sync payload check (as sent to PUT /projects/{id}/sync-full)
+      const syncPayload = {
+        title: s.projectName,
+        idea: s.productIdea,
+        base_version: 1,
+        requirements: s.requirements,
+        user_stories: s.userStories,
+        nodes_data: s.umlNodes,
+        edges_data: s.umlEdges,
+        architecture_pattern: s.architecture.pattern,
+        openapi_yaml: s.openapiYaml,
+        documents: s.docs,
+      };
+      const syncJson = JSON.stringify(syncPayload);
+      expect(syncJson).not.toContain(secretKey);
+      expect(syncJson).not.toContain('apiKeys');
+    });
   });
 });

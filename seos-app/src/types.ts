@@ -124,6 +124,7 @@ export interface AISettings {
   retryCount: number;
   fallbackProvider: 'none' | 'openai' | 'gemini' | 'anthropic' | 'groq' | 'nvidia';
   sessionKeyPersistence?: boolean;
+  rememberApiKeyOnDevice?: boolean;
 }
 
 export interface PipelineConfigSettings {
